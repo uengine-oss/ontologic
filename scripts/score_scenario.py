@@ -106,14 +106,18 @@ def datasource_count(driver, database: str) -> int:
 
 
 def inferred_relations(driver, database: str, schema: str) -> list[dict]:
+    # 증강은 추론 관계를 `(:Table)-[:FK_TO_TABLE {inferred: true}]->(:Table)` 로 쓴다
+    # (skill_augment_step 의 `_UPSERT_INFERRED_REL` 주석 — 카탈로그 API 가 읽는 형태).
+    # 예전 `INFERRED_REFERENCES` 만 보면 관계를 찾아도 늘 0 으로 채점된다.
     q = """
-    MATCH (a:Column)-[r:INFERRED_REFERENCES]->(b:Column)
-    RETURN a.table AS from_table, a.name AS from_col,
-           b.table AS to_table,  b.name AS to_col
+    MATCH (a:Table)-[r:FK_TO_TABLE]->(b:Table)
+    WHERE r.inferred = true AND toLower(a.schema) = toLower($schema)
+    RETURN a.name AS from_table, r.sourceColumn AS from_col,
+           b.name AS to_table,  r.targetColumn AS to_col
     """
     with driver.session(database=database) as s:
         try:
-            return s.run(q).data()
+            return s.run(q, schema=schema).data()
         except Exception:
             return []
 

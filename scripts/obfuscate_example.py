@@ -286,7 +286,9 @@ def check_mapping(doc: dict) -> list[str]:
             cseen[c["target"]] = c["source"]
             if not re.fullmatch(r"C\d{3}", c["target"]):
                 errs.append(f"컬럼 target 이 순번 코드가 아님: {key}={c['target']}")
-        if not re.fullmatch(r"TB\d{2}", t["target"]):
+        # 접두 한 글자(`TBS01`)까지 허용한다 — 같은 Neo4j 에 다른 난독화 예제(`TB01`…)가 이미
+        # 있으면 이름만으로 테이블을 찾는 API 가 둘을 가르지 못한다(증권 0편에서 실측).
+        if not re.fullmatch(r"TB[A-Z]?\d{2}", t["target"]):
             errs.append(f"테이블 target 이 순번 코드가 아님: {t['target']}")
 
     # ── 정답지와 치환 사전의 일치 ──
