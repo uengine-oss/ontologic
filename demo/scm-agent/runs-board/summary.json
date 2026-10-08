@@ -1,0 +1,56 @@
+[
+  {
+    "id": "Q1-조달",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 58.5,
+    "error": ""
+  },
+  {
+    "id": "Q2-수출입",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 40.0,
+    "error": ""
+  },
+  {
+    "id": "Q3-재고",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 45.2,
+    "error": ""
+  },
+  {
+    "id": "Q4-계약",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 47.4,
+    "error": ""
+  },
+  {
+    "id": "Q5-구매",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 41.1,
+    "error": ""
+  },
+  {
+    "id": "Q6-고객지원",
+    "widget_kind": "",
+    "class_name": "",
+    "rule": "",
+    "row_count": 0,
+    "elapsed_s": 63.5,
+    "error": ""
+  }
+]

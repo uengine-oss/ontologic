@@ -1,0 +1,26 @@
+[
+  {
+    "id": "SB-board",
+    "title": "보드 — 같은 지식지도에서 자동 구성한 대시보드",
+    "file": "SB-board.webm",
+    "marks": [
+      {
+        "label": "open",
+        "t": 3.1
+      },
+      {
+        "label": "dashboard-list",
+        "t": 4.4
+      },
+      {
+        "label": "widgets",
+        "t": 15.4
+      },
+      {
+        "label": "scrolled",
+        "t": 22
+      }
+    ],
+    "duration_s": 24.7
+  }
+]

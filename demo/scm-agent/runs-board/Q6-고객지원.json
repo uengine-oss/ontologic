@@ -1,0 +1,20 @@
+{
+  "id": "Q6-고객지원",
+  "question": "고객 클레임 TK-2026-0031 의 원인을 주문에서 통관까지 역추적하면 무엇이 나오는가?",
+  "elapsed_s": 63.5,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [],
+    "errors": [],
+    "applied": false,
+    "patch": [],
+    "note": "질의응답 요청이라 대시보드 패치가 없고, 대시보드 도구도 붙어 있지 않아 아무것도 바꾸지 않았습니다.",
+    "question": "고객 클레임 TK-2026-0031 의 원인을 주문에서 통관까지 역추적하면 무엇이 나오는가?"
+  }
+}

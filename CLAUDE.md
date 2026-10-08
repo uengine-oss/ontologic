@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/008-legacy-metadata-to-ontology/plan.md`
+`specs/011-ontology-board/plan.md`
 <!-- SPECKIT END -->
 
 # ontologic
@@ -35,6 +35,12 @@ shell commands, and other important information, read the current plan:
 |---|---|
 | `.specify/memory/constitution.md` | 플랫폼 계약 (리뷰 기준) |
 | `docs/catalog-schema.md` | 카탈로그 그래프 실측 스냅샷과 재확인 방법 |
+| `docs/graph-schema-contract.md` | 온톨로지 모델을 그래프에 발행하고 런타임이 읽는 계약 |
+| `docs/agentic-rag-walkthrough.md` | MCP 로 agentic RAG 를 실제 수행한 기록 (8개 시나리오·2개 에이전트·토큰 실측) |
+| `demo/agent-runs/` | 위 기록의 원본 로그 (도구 호출 인자·결과 그대로) |
+| `docs/scm-agent-demo.md` | 공급망 6개 업무 도메인 멀티 에이전트 시연 기록 (연구과제 근거 자료) |
+| `demo/scm-agent/` | 위 시연의 데이터셋·실행 스크립트·원본 로그·영상 |
+| `demo/scm-agent/ARCHITECTURE.md` | 시연 구성 순서(문서→온톨로지→연계→바인딩)와 첫 구성을 되돌린 이유 |
 | `installation.md` | 서비스 포트·기동 순서·알려진 이슈 |
 | `specs/` | speckit 기능 스펙 (플랫폼 단위) |
 
@@ -44,8 +50,10 @@ shell commands, and other important information, read the current plan:
 ## 검증
 
 ```bash
-uv run --with neo4j python scripts/inspect_catalog.py   # 카탈로그 계약이 여전히 유효한가
-./start-all-services.sh                                 # 전체 기동
+uv run --with neo4j python scripts/inspect_catalog.py        # 카탈로그 계약이 여전히 유효한가
+uv run --with neo4j python scripts/probe_graph_schema_api.py # 그래프 스키마 API 계약
+uv run python scripts/verify_ontological_backend.py          # ontological-db 에서도 도는가
+./start-all-services.sh                                      # 전체 기동
 ```
 
 계약 위반이 의심되면 추측으로 고치지 않고 위 스크립트로 재확인한다.

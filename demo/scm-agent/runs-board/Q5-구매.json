@@ -1,0 +1,20 @@
+{
+  "id": "Q5-구매",
+  "question": "공급사별 납기준수율과 평가점수를 비교해서 보여줘.",
+  "elapsed_s": 41.1,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [],
+    "errors": [],
+    "applied": false,
+    "patch": [],
+    "note": "Supplier 클래스의 속성 목록이 전달되지 않아 납기준수율·평가점수·공급사 식별자의 실제 속성명을 확인할 수 없어 패치를 만들지 않았습니다.",
+    "question": "공급사별 납기준수율과 평가점수를 비교해서 보여줘."
+  }
+}

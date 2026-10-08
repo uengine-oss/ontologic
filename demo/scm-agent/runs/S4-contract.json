@@ -1,0 +1,287 @@
+{
+  "id": "S4-contract",
+  "domain": "계약",
+  "agent": "계약 에이전트",
+  "title": "만기 임박 계약 감시 → 미결 발주 노출액 집계 → 갱신 우선순위",
+  "question": "앞으로 60일 이내에 만기되는 공급 계약을 찾아줘. 자동갱신 여부, 페널티 조항, 리스크 조항을 정리하고, 각 계약에 걸려 있는 미결(OPEN/PARTIAL/DELAYED) 발주 건수와 금액을 집계해서 갱신 우선순위를 제안해줘.",
+  "user_message": "앞으로 60일 이내에 만기되는 공급 계약을 찾아줘. 자동갱신 여부, 페널티 조항, 리스크 조항을 정리하고, 각 계약에 걸려 있는 미결(OPEN/PARTIAL/DELAYED) 발주 건수와 금액을 집계해서 갱신 우선순위를 제안해줘.",
+  "session_id": "scm-demo-S4-contract-ef58aa60",
+  "backend": "ontology-studio /api/stream (AGENT_BACKEND=cliagents)",
+  "events": [
+    {
+      "event": "status",
+      "data": {
+        "message": "질문 응답 모드 실행 시작..."
+      },
+      "t": 0.0
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01DxTDKJwj7u5JbwqqcTcJ2c",
+        "name": "Skill",
+        "node": "Skill",
+        "args": {
+          "skill": "ontologic-agentic-rag"
+        },
+        "description": "Skill 도구를 실행합니다"
+      },
+      "t": 7.39
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01DxTDKJwj7u5JbwqqcTcJ2c",
+        "name": "Skill",
+        "content": "Launching skill: ontologic-agentic-rag",
+        "node": ""
+      },
+      "t": 7.42
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01Vxcfd48mBZJgrvG6UgZAnS",
+        "name": "Read",
+        "node": "Read",
+        "args": {
+          "file_path": "/Users/uengine/ontologic/ontology-studio/.cache/sandbox/sessions/scm-demo-S4-contract-ef58aa60answer/.claude/skills/ontologic-agentic-rag/references/two-step-retrieval.md"
+        },
+        "description": "Read 도구를 실행합니다"
+      },
+      "t": 12.44
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01Sm4oN2rnGXgxrRfuNVeCBx",
+        "name": "ontology_graph_schema",
+        "node": "ontology_graph_schema",
+        "args": {},
+        "description": "ontology_graph_schema 도구를 실행합니다"
+      },
+      "t": 12.44
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01Vxcfd48mBZJgrvG6UgZAnS",
+        "name": "Read",
+        "content": "1\t# 2-step 검색 전략 — 스키마를 필요한 만큼만 받는다\n2\t\n3\t`ontology-answer` 스킬의 `references/search-strategy.md` 와 단계 구조가 같다. 다른 점은\n4\t도구 이름과, 스키마를 **한 클래스씩** 받는다는 것이다.\n5\t\n6\t## 왜 순서가 중요한가\n7\t\n8\t한 번에 모든 스키마를 받으면 세 가지가 동시에 나빠진다 — 토큰이 터지고, 추론 정확도가\n9\t떨어지고, DB 구조가 전부 노출된다. 그래서 이 순서는 편의가 아니라 설계다.\n10\t\n11\t## 0단계: 지도 한 번 — `graph://schema`\n12\t\n13\t**세션당 한 번.** 클래스·관계와 \"누가 데이터소스를 갖는가\"만 들어 있다. **컬럼은 없다.**\n14\t\n15\t여기서 볼 것:\n16\t\n17\t- `binding_kind: \"virtual\"` — 이 클래스는 실시간으로 DB 를 읽는다. 그래프에 노드가 **0건**\n18\t  이라 벡터 검색으로는 절대 발견되지 않는다.\n19\t- `binding_kind: \"materialized\"` — 그래프에 인스턴스가 있다. Cypher 로 탐색한다.\n20\t- `source: {datasource, schema, table}` — 그 클래스가 어디를 가리키는지.\n21\t\n22\t발행된 것이 없으면 `note` 에 발행하라는 안내가 온다. 그 상태에서는 아무 조회도 의미가 없다.\n23\t\n24\t## 0.5단계: 이름을 키로 바꾼다 — `ontology_resolve_entity`\n25\t\n26\t질문이 대상을 **이름으로** 부를 때만. 그래프 탐색은 키 값(`PROD-001`)에서 시작하는데\n27\t사용자가 준 것은 이름(`고정밀 베어링 A형`)이다.\n28\t\n29\t```\n30\tontology_resolve_entity(\"고정밀 베어링 A형\", class_name=\"MfgProduct\")\n31\t→ {\"matches\": [{\"class_name\": \"MfgProduct\",\n32\t                \"properties\": {\"product_id\": \"PROD-001\", ...},\n33\t                \"matched_by\": \"lexical\"}],\n34\t   \"key_columns\": {\"MfgProduct\": [\"product_id\"]}}\n35\t```\n36\t\n37\t`matched_by` 를 보라.\n38\t\n39\t- `lexical` — 이름 문자열이 속성에 들어 있어 찾았다. **카탈로그에서 생성된 클래스는 이\n40\t  경로로만 찾힌다.** 속성명이 컬럼명(`product_name`)이라 `name` 이 없고, 임베딩 텍스트는\n41\t  `name`/`title`/`content` 로만 만들어지므로 벡터 색인에 실릴 내용이 없다.\n42\t- `vector` — 의미 유사도로 찾았다. 문서에서 온 엔티티에 해당한다.\n43\t\n44\t결과가 0건이면 색인이 없는 것인지 정말 없는 것인지 `note` 가 알려 준다. **ID 를 추측해\n45\t넘어가지 마라** — 없는 키로 Cypher 를 돌리면 조용히 0행이 나오고, 그것을 \"데이터가 없다\"로\n46\t잘못 보고하게 된다.\n47\t\n48\t## 1단계: 그래프로 대상을 좁힌다 — `ontology_graph_cypher`\n49\t\n50\t관계·토폴로지·경로가 걸린 질문에만 쓴다. 인스턴스는 `:_Entity` 와 클래스명을 함께 갖는다.\n51\t\n52\t```cypher\n53\tMATCH (p:_Entity:MfgProduct {product_id: $pid})\n54\t      -[:REFERENCES_MFG_PRODUCT]-(r:_Entity:MfgProductRouting)\n55\t      -[:REFERENCES_MFG_PROCESS_STEP]-(s:_Entity:MfgProcessStep)\n56\tRETURN s.step_id AS step_id, s.step_name AS step_name\n57\t```\n58\t\n59\t응답에는 **`_datasource_refs`** 가 붙어 온다. **질의가 언급한 클래스**에서 뽑으므로\n60\t노드를 통째로 RETURN 하든 속성만 RETURN 하든 항상 실린다:\n61\t\n62\t```json\n63\t{\"class\": \"MfgDailyEquipment\", \"datasource\": \"manufacturing\",\n64\t \"schema\": \"manufacturing\", \"table\": \"mfg_daily_equipment\",\n65\t \"via_relationship\": \"REFERENCES_MFG_PROCESS_STEP\", \"join_on\": \"step_id = step_id\"}\n66\t```\n67\t\n68\t이것이 **다음에 갈 곳**이다. `join_on` 이 두 세계를 잇는 키다 — 가상 클래스는 그래프에\n69\t노드가 없어 관계를 따라갈 수 없고, 오직 **키 값**으로만 이어진다.\n70\t\n71\t카탈로그 라벨(`DataSource`·`Table`·`Column`)은 조회할 수 없다. 접속 정보가 거기 있다.\n72\t\n73\t## 2단계: 그 클래스 하나의 스키마 — `ontology_get_datasource_schema`\n74\t\n75\t`_datasource_refs` 가 준 `class` 를 그대로 넘긴다.\n76\t\n77\t```\n78\tontology_get_datasource_schema(\"MfgDailyEquipment\")\n79\t```\n80\t\n81\t받는 것:\n82\t\n83\t- `columns[]` — 각 항목의 **`column`** 이 SQL 에 쓸 이름이다. `property` 는 온톨로지\n84\t  용어이고 SQL 에 넣으면 거부된다.\n85\t- `key_columns` — 조인·식별에 쓸 키.\n86\t- `base_conditions` — 이 클래스의 **모든** 조회에 항상 걸리는 조건. 모집단의 정의다.\n87\t- `behaviors[]` — 빌드 시점에 실데이터로 검증된 질의. 질문을 커버하면 그것을 우선한다.\n88\t\n89\t**다른 클래스의 컬럼은 오지 않는다.** 두 클래스가 필요하면 두 번 부른다. 그래도 전체\n90\t스키마를 받는 것보다 훨씬 싸다.\n91\t\n9",
+        "node": ""
+      },
+      "t": 12.47
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01Sm4oN2rnGXgxrRfuNVeCBx",
+        "name": "ontology_graph_schema",
+        "content": "{\"result\":\"{\\\"models\\\": [{\\\"schema_id\\\": \\\"c316cf717ef3\\\", \\\"name\\\": \\\"공급망 지식지도\\\", \\\"description\\\": \\\"「기업 공급망 관리 업무 개념 체계」 문서 근거. 1-1 기록 개념은 scm_erp/wms/customs/crm 4개 이기종 시스템 테이블에 바인딩된 가상 클래스, 1-2 판단 개념은 업무 규칙을 담은 개념 클래스. 키 표기 차이(item_id/sku_code/ref_item_code, supplier_id/vendor_code)를 관계로 정합.\\\", \\\"intent\\\": \\\"\\\", \\\"golden_questions\\\": [], \\\"format_version\\\": 1, \\\"published_at\\\": 1787312650.117163}, {\\\"schema_id\\\": \\\"556fd497fb03\\\", \\\"name\\\": \\\"미국 전력망\\\", \\\"description\\\": \\\"미국 전력망 지리 예제\\\", \\\"intent\\\": \\\"변전소·송전선로·정전구역·발전량을 지도와 추이로 본다\\\", \\\"golden_questions\\\": [\\\"과부하 구간이 있는 송전선로는 어디인가?\\\", \\\"주별 정전 피해 가구는 얼마나 되는가?\\\", \\\"발전 유형별 주간 발전량 추이는?\\\"], \\\"format_version\\\": 1, \\\"published_at\\\": 1787180771.1668632}, {\\\"schema_id\\\": \\\"a0edf61cc416\\\", \\\"name\\\": \\\"제조 하이브리드\\\", \\\"description\\\": \\\"legacy.manufacturing 테이블 구조에서 생성\\\", \\\"intent\\\": \\\"\\\", \\\"golden_questions\\\": [], \\\"format_version\\\": 1, \\\"published_at\\\": 1786947759.0137112}], \\\"classes\\\": [{\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"AlternateSourcingOption\\\", \\\"description\\\": \\\"[판단 개념·데이터 없음] 품목의 대체 소싱 후보와 조건 비교. 품목(Item)과 공급사(Supplier)를 대조. R7: Item.alt_supplier_id가 존재하면 대체 공급사가 후보다. 주공급사(primary_supplier_id)와 대체공급사를 리드타임(lead_time_days)·정시납품률(otd_rate)·평가점수(eval_score)·인코텀즈·통화·단가로 비교해 긴급 대체 가능성과 조건 차이를 판정한다. 조인: Item.primary_supplier_id / Item.alt_supplier_id = Supplier.supplier_id.\\\", \\\"binding_kind\\\": \\\"materialized\\\", \\\"property_names\\\": [], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": false, \\\"native_key\\\": [], \\\"behavior_count\\\": 0}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"ClaimTicket\\\", \\\"description\\\": \\\"고객 클레임 티켓. 키 ticket_no. 고객(cust_no)·판매주문(so_no)·품목(sku_code)을 참조하고, 원인 역추적을 위해 발주(ref_po_no)·선적(ref_shipment_no)을 선택적으로 참조. 속성: 카테고리, 심각도, 상태, 근본원인(root_cause), 접수일. 주문→발주→선적→통관 역추적의 출발점.\\\", \\\"binding_kind\\\": \\\"virtual\\\", \\\"property_names\\\": [\\\"티켓번호\\\", \\\"고객번호\\\", \\\"주문번호\\\", \\\"품목코드\\\", \\\"접수일\\\", \\\"카테고리\\\", \\\"심각도\\\", \\\"상태\\\", \\\"근본원인\\\", \\\"참조발주\\\", \\\"참조선적\\\"], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": true, \\\"native_key\\\": [\\\"ticket_no\\\"], \\\"behavior_count\\\": 0, \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\", \\\"schema\\\": \\\"crm_scm\\\", \\\"table\\\": \\\"claim_ticket\\\"}, \\\"key_columns\\\": [\\\"ticket_no\\\"]}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"Contract\\\", \\\"description\\\": \\\"공급 계약. 키 contract_id. 속성: 공급사, 계약유형, 시작·종료일(end_date), 자동갱신(auto_renew), 페널티율(penalty_rate), 단가고정(price_lock), 상태(status: ACTIVE/EXPIRING/EXPIRED), 리스크조항(risk_clause). 발주(PurchaseOrder.contract_id)가 이 계약을 근거로 발생한다.\\\", \\\"binding_kind\\\": \\\"virtual\\\", \\\"property_names\\\": [\\\"계약번호\\\", \\\"공급사ID\\\", \\\"계약유형\\\", \\\"시작일\\\", \\\"종료일\\\", \\\"자동갱신\\\", \\\"페널티율\\\", \\\"단가고정\\\", \\\"상태\\\", \\\"리스크조항\\\"], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": true, \\\"native_key\\\": [\\\"contract_id\\\"], \\\"behavior_count\\\": 0, \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\", \\\"schema\\\": \\\"erp\\\", \\\"table\\\": \\\"doc_contract\\\"}, \\\"key_columns\\\": [\\\"contract_id\\\"]}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"Customer\\\", \\\"description\\\": \\\"고객사. 키 cust",
+        "node": ""
+      },
+      "t": 12.74
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "그래프에 \"공급망 지식지도\" 모델이 발행돼 있고, 이 질문에 필요한 두 가상 클래스가 모두 `scm_erp` 에 바인딩돼 있습니다. `Contract` 와 `PurchaseOrder` 의 컬럼을 받겠습니다.",
+        "node": "agent"
+      },
+      "t": 22.48
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01HTEQ9SXe3eHdQMD7i8unu4",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "Contract"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 22.48
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_erp",
+        "table": "doc_contract"
+      },
+      "t": 22.53
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01HTEQ9SXe3eHdQMD7i8unu4",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"Contract\\\", \\\"description\\\": \\\"공급 계약. 키 contract_id. 속성: 공급사, 계약유형, 시작·종료일(end_date), 자동갱신(auto_renew), 페널티율(penalty_rate), 단가고정(price_lock), 상태(status: ACTIVE/EXPIRING/EXPIRED), 리스크조항(risk_clause). 발주(PurchaseOrder.contract_id)가 이 계약을 근거로 발생한다.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\", \\\"schema\\\": \\\"erp\\\", \\\"table\\\": \\\"doc_contract\\\"}, \\\"key_columns\\\": [\\\"contract_id\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"계약번호\\\", \\\"column\\\": \\\"contract_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"공급사ID\\\", \\\"column\\\": \\\"supplier_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"계약유형\\\", \\\"column\\\": \\\"contract_type\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"시작일\\\", \\\"column\\\": \\\"start_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"종료일\\\", \\\"column\\\": \\\"end_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"자동갱신\\\", \\\"column\\\": \\\"auto_renew\\\", \\\"type\\\": \\\"boolean\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"페널티율\\\", \\\"column\\\": \\\"penalty_rate\\\", \\\"type\\\": \\\"float\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"단가고정\\\", \\\"column\\\": \\\"price_lock\\\", \\\"type\\\": \\\"boolean\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"리스크조항\\\", \\\"column\\\": \\\"risk_clause\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 10, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 22.53
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01EgjGEcbAmt4k7kGxS4RihA",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "PurchaseOrder"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 22.68
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_erp",
+        "table": "doc_purchase_order"
+      },
+      "t": 22.72
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01EgjGEcbAmt4k7kGxS4RihA",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"PurchaseOrder\\\", \\\"description\\\": \\\"구매 발주 헤더. 키 po_id(WMS shipment.ref_po_no, CRM claim_ticket.ref_po_no 로 참조). 속성: 공급사, 계약(contract_id), 발주일, 납기약속일(promised_date), 상태(status: OPEN/CONFIRMED/DELAYED/RECEIVED 등), 발주금액(total_amount_usd), 우선순위(priority), 구매담당.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\", \\\"schema\\\": \\\"erp\\\", \\\"table\\\": \\\"doc_purchase_order\\\"}, \\\"key_columns\\\": [\\\"po_id\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"발주번호\\\", \\\"column\\\": \\\"po_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"공급사ID\\\", \\\"column\\\": \\\"supplier_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"계약번호\\\", \\\"column\\\": \\\"contract_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"발주일\\\", \\\"column\\\": \\\"order_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"납기약속일\\\", \\\"column\\\": \\\"promised_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"발주금액USD\\\", \\\"column\\\": \\\"total_amount_usd\\\", \\\"type\\\": \\\"float\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"우선순위\\\", \\\"column\\\": \\\"priority\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 8, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 22.72
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "SQL 로 집계하기 전에, 이 데모 데이터의 계약 만기일이 어느 시점에 몰려 있는지부터 확인하겠습니다(오늘=2026-08-21 기준 \"60일 이내\"를 정확히 걸기 위해).",
+        "node": "agent"
+      },
+      "t": 45.37
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_0165DfdrBPKhvjMHzz4AqUAn",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT status, COUNT(*) AS cnt, MIN(end_date) AS min_end, MAX(end_date) AS max_end FROM erp.doc_contract GROUP BY status ORDER BY status"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 45.7
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 3,
+        "datasource": "scm_erp",
+        "table": ""
+      },
+      "t": 45.81
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_0165DfdrBPKhvjMHzz4AqUAn",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"status\\\", \\\"cnt\\\", \\\"min_end\\\", \\\"max_end\\\"], \\\"rows\\\": [{\\\"status\\\": \\\"ACTIVE\\\", \\\"cnt\\\": 15, \\\"min_end\\\": \\\"2026-12-01\\\", \\\"max_end\\\": \\\"2027-12-01\\\"}, {\\\"status\\\": \\\"EXPIRED\\\", \\\"cnt\\\": 10, \\\"min_end\\\": \\\"2026-01-01\\\", \\\"max_end\\\": \\\"2026-08-01\\\"}, {\\\"status\\\": \\\"EXPIRING\\\", \\\"cnt\\\": 6, \\\"min_end\\\": \\\"2026-09-01\\\", \\\"max_end\\\": \\\"2026-10-01\\\"}], \\\"row_count\\\": 3, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT status, COUNT(*) AS cnt, MIN(end_date) AS min_end, MAX(end_date) AS max_end FROM erp.doc_contract GROUP BY status ORDER BY status LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\"}}\"}",
+        "node": ""
+      },
+      "t": 45.81
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "오늘(2026-08-21) 기준 60일 이내 = **2026-08-21 ~ 2026-10-20**. `EXPIRING` 6건(9/01~10/01)이 이 창에 들어옵니다. 이제 계약 조항과 미결 발주 집계를 한 번에 조인하겠습니다.",
+        "node": "agent"
+      },
+      "t": 62.64
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01C6LKf7huLcSPDiuzDoDmCZ",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT c.contract_id, c.supplier_id, c.contract_type, c.end_date, c.status,\n       c.auto_renew, c.penalty_rate, c.price_lock, c.risk_clause,\n       COUNT(po.po_id) FILTER (WHERE po.status IN ('OPEN','PARTIAL','DELAYED')) AS open_po_cnt,\n       COALESCE(SUM(po.total_amount_usd) FILTER (WHERE po.status IN ('OPEN','PARTIAL','DELAYED')), 0) AS open_po_amount_usd\nFROM erp.doc_contract c\nLEFT JOIN erp.doc_purchase_order po ON po.contract_id = c.contract_id\nWHERE c.end_date BETWEEN DATE '2026-08-21' AND DATE '2026-10-20'\nGROUP BY c.contract_id, c.supplier_id, c.contract_type, c.end_date, c.status,\n         c.auto_renew, c.penalty_rate, c.price_lock, c.risk_clause\nORDER BY open_po_amount_usd DESC"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 65.59
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 6,
+        "datasource": "scm_erp",
+        "table": ""
+      },
+      "t": 65.65
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01C6LKf7huLcSPDiuzDoDmCZ",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"contract_id\\\", \\\"supplier_id\\\", \\\"contract_type\\\", \\\"end_date\\\", \\\"status\\\", \\\"auto_renew\\\", \\\"penalty_rate\\\", \\\"price_lock\\\", \\\"risk_clause\\\", \\\"open_po_cnt\\\", \\\"open_po_amount_usd\\\"], \\\"rows\\\": [{\\\"contract_id\\\": \\\"CT-2025-011\\\", \\\"supplier_id\\\": \\\"SUP-CN-003\\\", \\\"contract_type\\\": \\\"연간공급\\\", \\\"end_date\\\": \\\"2026-09-15\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 0, \\\"penalty_rate\\\": \\\"2.00\\\", \\\"price_lock\\\": 1, \\\"risk_clause\\\": \\\"납기 7일 초과 지연 시 건당 2% 페널티, 연속 2회 시 계약해지 가능\\\", \\\"open_po_cnt\\\": 2, \\\"open_po_amount_usd\\\": \\\"166594.20\\\"}, {\\\"contract_id\\\": \\\"CT-2025-026\\\", \\\"supplier_id\\\": \\\"SUP-US-001\\\", \\\"contract_type\\\": \\\"단가계약\\\", \\\"end_date\\\": \\\"2026-10-01\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 0, \\\"penalty_rate\\\": \\\"0.50\\\", \\\"price_lock\\\": 0, \\\"risk_clause\\\": null, \\\"open_po_cnt\\\": 2, \\\"open_po_amount_usd\\\": \\\"20535.50\\\"}, {\\\"contract_id\\\": \\\"CT-2025-024\\\", \\\"supplier_id\\\": \\\"SUP-DE-001\\\", \\\"contract_type\\\": \\\"단가계약\\\", \\\"end_date\\\": \\\"2026-09-01\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 0, \\\"penalty_rate\\\": \\\"0.50\\\", \\\"price_lock\\\": 1, \\\"risk_clause\\\": null, \\\"open_po_cnt\\\": 2, \\\"open_po_amount_usd\\\": \\\"18482.40\\\"}, {\\\"contract_id\\\": \\\"CT-2025-005\\\", \\\"supplier_id\\\": \\\"SUP-KR-003\\\", \\\"contract_type\\\": \\\"단가계약\\\", \\\"end_date\\\": \\\"2026-10-01\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 0, \\\"penalty_rate\\\": \\\"1.50\\\", \\\"price_lock\\\": 0, \\\"risk_clause\\\": null, \\\"open_po_cnt\\\": 1, \\\"open_po_amount_usd\\\": \\\"9834.80\\\"}, {\\\"contract_id\\\": \\\"CT-2025-020\\\", \\\"supplier_id\\\": \\\"SUP-TW-001\\\", \\\"contract_type\\\": \\\"단가계약\\\", \\\"end_date\\\": \\\"2026-09-01\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 1, \\\"penalty_rate\\\": \\\"2.00\\\", \\\"price_lock\\\": 1, \\\"risk_clause\\\": null, \\\"open_po_cnt\\\": 0, \\\"open_po_amount_usd\\\": \\\"0\\\"}, {\\\"contract_id\\\": \\\"CT-2025-030\\\", \\\"supplier_id\\\": \\\"SUP-IN-001\\\", \\\"contract_type\\\": \\\"단가계약\\\", \\\"end_date\\\": \\\"2026-09-01\\\", \\\"status\\\": \\\"EXPIRING\\\", \\\"auto_renew\\\": 0, \\\"penalty_rate\\\": \\\"2.00\\\", \\\"price_lock\\\": 0, \\\"risk_clause\\\": null, \\\"open_po_cnt\\\": 0, \\\"open_po_amount_usd\\\": \\\"0\\\"}], \\\"row_count\\\": 6, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT c.contract_id, c.supplier_id, c.contract_type, c.end_date, c.status,\\\\n       c.auto_renew, c.penalty_rate, c.price_lock, c.risk_clause,\\\\n       COUNT(po.po_id) FILTER (WHERE po.status IN ('OPEN','PARTIAL','DELAYED')) AS open_po_cnt,\\\\n       COALESCE(SUM(po.total_amount_usd) FILTER (WHERE po.status IN ('OPEN','PARTIAL','DELAYED')), 0) AS open_po_amount_usd\\\\nFROM erp.doc_contract c\\\\nLEFT JOIN erp.doc_purchase_order po ON po.contract_id = c.contract_id\\\\nWHERE c.end_date BETWEEN DATE '2026-08-21' AND DATE '2026-10-20'\\\\nGROUP BY c.contract_id, c.supplier_id, c.contract_type, c.end_date, c.status,\\\\n         c.auto_renew, c.penalty_rate, c.price_lock, c.risk_clause\\\\nORDER BY open_po_amount_usd DESC LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\"}}\"}",
+        "node": ""
+      },
+      "t": 65.65
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "조회 결과에 근거해 정리합니다.\n\n## 60일 이내(2026-08-21 ~ 2026-10-20) 만기 공급 계약 — 6건\n\n**그래프 근거**: `공급망 지식지도` 모델의 `Contract`(가상 클래스, `scm_erp.erp.doc_contract`) ↔ `PurchaseOrder`(`scm_erp.erp.doc_purchase_order`), 관계 `UNDER_CONTRACT` (조인키 `contract_id`). 갱신 순위 규칙은 판단 개념 `RenewalPriority`(R8): **미결 발주 노출액 합계 큰 순**.\n**데이터 근거**: `erp.doc_contract` LEFT JOIN `erp.doc_purchase_order`, 미결 = `status IN (OPEN, PARTIAL, DELAYED)`. 만기 창에 걸린 계약 6건(모두 status=EXPIRING).\n\n| 계약 | 공급사 | 만기일 | 자동갱신 | 페널티율 | 단가고정 | 리스크조항 | 미결 발주 | 미결 금액(USD) |\n|---|---|---|---|---|---|---|---|---|\n| CT-2025-011 | SUP-CN-003 | 2026-09-15 | ❌ 없음 | 2.0% | ✅ | **납기 7일 초과 지연 시 건당 2% 페널티, 연속 2회 시 계약해지 가능** | 2건 | **166,594.20** |\n| CT-2025-026 | SUP-US-001 | 2026-10-01 | ❌ 없음 | 0.5% | ❌ | 없음 | 2건 | 20,535.50 |\n| CT-2025-024 | SUP-DE-001 | 2026-09-01 | ❌ 없음 | 0.5% | ✅ | 없음 | 2건 | 18,482.40 |\n| CT-2025-005 | SUP-KR-003 | 2026-10-01 | ❌ 없음 | 1.5% | ❌ | 없음 | 1건 | 9,834.80 |\n| CT-2025-020 | SUP-TW-001 | 2026-09-01 | ✅ 있음 | 2.0% | ✅ | 없음 | 0건 | 0 |\n| CT-2025-030 | SUP-IN-001 | 2026-09-01 | ❌ 없음 | 2.0% | ❌ | 없음 | 0건 | 0 |\n\n*미결 금액 합계 = 215,446.90 USD (5건에 발주 존재, CT-2025-011 이 전체의 77%).*\n\n## 갱신 우선순위 제안\n\n**RenewalPriority(R8) 규칙(미결 노출액 순)에 자동갱신·리스크조항 강도를 가중해 조정**했습니다.\n\n**🔴 1순위 — CT-2025-011 (SUP-CN-003)** · 즉시 착수\n- 미결 노출액 $166,594(전체의 77%)로 압도적, **자동갱신 없음** → 방치 시 9/15 만기 후 공급 공백.\n- 유일하게 **강한 리스크조항**(연속 2회 지연 시 **계약해지 가능**) + 페널티 2% + 단가고정. 만기도 가장 임박한 축.\n- → 만기 25일 전. 재협상/연장 협상을 가장 먼저.\n\n**🟠 2순위 — CT-2025-026 (SUP-US-001)** · 미결 2건 $20,536, 자동갱신 없음, 10/01 만기. 노출액 2위 + 자동갱신 부재.\n\n**🟠 3순위 — CT-2025-024 (SUP-DE-001)** · 미결 2건 $18,482, 자동갱신 없음, **9/01 만기(가장 임박)**. 금액은 근소하게 낮지만 만기가 빨라 실무상 2순위와 병행 착수 권장.\n\n**🟡 4순위 — CT-2025-005 (SUP-KR-003)** · 미결 1건 $9,835, 자동갱신 없음, 10/01 만기.\n\n**🟢 5순위 — CT-2025-030 (SUP-IN-001)** · 미결 0건이나 **자동갱신 없음** + 페널티 2%. 노출액은 없지만 만기 후 자동 소멸하므로 신규 발주 예정이면 갱신 확인 필요.\n\n**⚪ 최하위 — CT-2025-020 (SUP-TW-001)** · **유일하게 자동갱신 ✅** + 미결 0건. 별도 조치 없이 자동 연장되므로 사실상 모니터링만.\n\n### 유의점\n- 상태 컬럼상 6건 모두 이미 `EXPIRING` 으로 표시돼 있어, 만기 임박이 시스템에도 반영된 상태입니다.\n- 페널티/리스크 조항이 명시적으로 채워진 계약은 **CT-2025-011 한 건뿐**이고, 나머지는 `risk_clause` 가 비어 있어(페널티율만 존재) 지연 리스크 노출은 CT-2025-011에 집중돼 있습니다.\n- 금액은 `total_amount_usd` 기준 미결(OPEN/PARTIAL/DELAYED) 발주 합계이며, 결과는 truncate 없이 전체 6건입니다.",
+        "node": "agent"
+      },
+      "t": 97.85
+    },
+    {
+      "event": "done",
+      "data": {
+        "message": "완료!",
+        "files": [],
+        "text": "그래프에 \"공급망 지식지도\" 모델이 발행돼 있고, 이 질문에 필요한 두 가상 클래스가 모두 `scm_erp` 에 바인딩돼 있습니다. `Contract` 와 `PurchaseOrder` 의 컬럼을 받겠습니다.SQL 로 집계하기 전에, 이 데모 데이터의 계약 만기일이 어느 시점에 몰려 있는지부터 확인하겠습니다(오늘=2026-08-21 기준 \"60일 이내\"를 정확히 걸기 위해).오늘(2026-08-21) 기준 60일 이내 = **2026-08-21 ~ 2026-10-20**. `EXPIRING` 6건(9/01~10/01)이 이 창에 들어옵니다. 이제 계약 조항과 미결 발주 집계를 한 번에 조인하겠습니다.조회 결과에 근거해 정리합니다.\n\n## 60일 이내(2026-08-21 ~ 2026-10-20) 만기 공급 계약 — 6건\n\n**그래프 근거**: `공급망 지식지도` 모델의 `Contract`(가상 클래스, `scm_erp.erp.doc_contract`) ↔ `PurchaseOrder`(`scm_erp.erp.doc_purchase_order`), 관계 `UNDER_CONTRACT` (조인키 `contract_id`). 갱신 순위 규칙은 판단 개념 `RenewalPriority`(R8): **미결 발주 노출액 합계 큰 순**.\n**데이터 근거**: `erp.doc_contract` LEFT JOIN `erp.doc_purchase_order`, 미결 = `status IN (OPEN, PARTIAL, DELAYED)`. 만기 창에 걸린 계약 6건(모두 status=EXPIRING).\n\n| 계약 | 공급사 | 만기일 | 자동갱신 | 페널티율 | 단가고정 | 리스크조항 | 미결 발주 | 미결 금액(USD) |\n|---|---|---|---|---|---|---|---|---|\n| CT-2025-011 | SUP-CN-003 | 2026-09-15 | ❌ 없음 | 2.0% | ✅ | **납기 7일 초과 지연 시 건당 2% 페널티, 연속 2회 시 계약해지 가능** | 2건 | **166,594.20** |\n| CT-2025-026 | SUP-US-001 | 2026-10-01 | ❌ 없음 | 0.5% | ❌ | 없음 | 2건 | 20,535.50 |\n| CT-2025-024 | SUP-DE-001 | 2026-09-01 | ❌ 없음 | 0.5% | ✅ | 없음 | 2건 | 18,482.40 |\n| CT-2025-005 | SUP-KR-003 | 2026-10-01 | ❌ 없음 | 1.5% | ❌ | 없음 | 1건 | 9,834.80 |\n| CT-2025-020 | SUP-TW-001 | 2026-09-01 | ✅ 있음 | 2.0% | ✅ | 없음 | 0건 | 0 |\n| CT-2025-030 | SUP-IN-001 | 2026-09-01 | ❌ 없음 | 2.0% | ❌ | 없음 | 0건 | 0 |\n\n*미결 금액 합계 = 215,446.90 USD (5건에 발주 존재, CT-2025-011 이 전체의 77%).*\n\n## 갱신 우선순위 제안\n\n**RenewalPriority(R8) 규칙(미결 노출액 순)에 자동갱신·리스크조항 강도를 가중해 조정**했습니다.\n\n**🔴 1순위 — CT-2025-011 (SUP-CN-003)** · 즉시 착수\n- 미결 노출액 $166,594(전체의 77%)로 압도적, **자동갱신 없음** → 방치 시 9/15 만기 후 공급 공백.\n- 유일하게 **강한 리스크조항**(연속 2회 지연 시 **계약해지 가능**) + 페널티 2% + 단가고정. 만기도 가장 임박한 축.\n- → 만기 25일 전. 재협상/연장 협상을 가장 먼저.\n\n**🟠 2순위 — CT-2025-026 (SUP-US-001)** · 미결 2건 $20,536, 자동갱신 없음, 10/01 만기. 노출액 2위 + 자동갱신 부재.\n\n**🟠 3순위 — CT-2025-024 (SUP-DE-001)** · 미결 2건 $18,482, 자동갱신 없음, **9/01 만기(가장 임박)**. 금액은 근소하게 낮지만 만기가 빨라 실무상 2순위와 병행 착수 권장.\n\n**🟡 4순위 — CT-2025-005 (SUP-KR-003)** · 미결 1건 $9,835, 자동갱신 없음, 10/01 만기.\n\n**🟢 5순위 — CT-2025-030 (SUP-IN-001)** · 미결 0건이나 **자동갱신 없음** + 페널티 2%. 노출액은 없지만 만기 후 자동 소멸하므로 신규 발주 예정이면 갱신 확인 필요.\n\n**⚪ 최하위 — CT-2025-020 (SUP-TW-001)** · **유일하게 자동갱신 ✅** + 미결 0건. 별도 조치 없이 자동 연장되므로 사실상 모니터링만.\n\n### 유의점\n- 상태 컬럼상 6건 모두 이미 `EXPIRING` 으로 표시돼 있어, 만기 임박이 시스템에도 반영된 상태입니다.\n- 페널티/리스크 조항이 명시적으로 채워진 계약은 **CT-2025-011 한 건뿐**이고, 나머지는 `risk_clause` 가 비어 있어(페널티율만 존재) 지연 리스크 노출은 CT-2025-011에 집중돼 있습니다.\n- 금액은 `total_amount_usd` 기준 미결(OPEN/PARTIAL/DELAYED) 발주 합계이며, 결과는 truncate 없이 전체 6건입니다.",
+        "build_report": null
+      },
+      "t": 98.2
+    }
+  ],
+  "answer": "그래프에 \"공급망 지식지도\" 모델이 발행돼 있고, 이 질문에 필요한 두 가상 클래스가 모두 `scm_erp` 에 바인딩돼 있습니다. `Contract` 와 `PurchaseOrder` 의 컬럼을 받겠습니다.SQL 로 집계하기 전에, 이 데모 데이터의 계약 만기일이 어느 시점에 몰려 있는지부터 확인하겠습니다(오늘=2026-08-21 기준 \"60일 이내\"를 정확히 걸기 위해).오늘(2026-08-21) 기준 60일 이내 = **2026-08-21 ~ 2026-10-20**. `EXPIRING` 6건(9/01~10/01)이 이 창에 들어옵니다. 이제 계약 조항과 미결 발주 집계를 한 번에 조인하겠습니다.조회 결과에 근거해 정리합니다.\n\n## 60일 이내(2026-08-21 ~ 2026-10-20) 만기 공급 계약 — 6건\n\n**그래프 근거**: `공급망 지식지도` 모델의 `Contract`(가상 클래스, `scm_erp.erp.doc_contract`) ↔ `PurchaseOrder`(`scm_erp.erp.doc_purchase_order`), 관계 `UNDER_CONTRACT` (조인키 `contract_id`). 갱신 순위 규칙은 판단 개념 `RenewalPriority`(R8): **미결 발주 노출액 합계 큰 순**.\n**데이터 근거**: `erp.doc_contract` LEFT JOIN `erp.doc_purchase_order`, 미결 = `status IN (OPEN, PARTIAL, DELAYED)`. 만기 창에 걸린 계약 6건(모두 status=EXPIRING).\n\n| 계약 | 공급사 | 만기일 | 자동갱신 | 페널티율 | 단가고정 | 리스크조항 | 미결 발주 | 미결 금액(USD) |\n|---|---|---|---|---|---|---|---|---|\n| CT-2025-011 | SUP-CN-003 | 2026-09-15 | ❌ 없음 | 2.0% | ✅ | **납기 7일 초과 지연 시 건당 2% 페널티, 연속 2회 시 계약해지 가능** | 2건 | **166,594.20** |\n| CT-2025-026 | SUP-US-001 | 2026-10-01 | ❌ 없음 | 0.5% | ❌ | 없음 | 2건 | 20,535.50 |\n| CT-2025-024 | SUP-DE-001 | 2026-09-01 | ❌ 없음 | 0.5% | ✅ | 없음 | 2건 | 18,482.40 |\n| CT-2025-005 | SUP-KR-003 | 2026-10-01 | ❌ 없음 | 1.5% | ❌ | 없음 | 1건 | 9,834.80 |\n| CT-2025-020 | SUP-TW-001 | 2026-09-01 | ✅ 있음 | 2.0% | ✅ | 없음 | 0건 | 0 |\n| CT-2025-030 | SUP-IN-001 | 2026-09-01 | ❌ 없음 | 2.0% | ❌ | 없음 | 0건 | 0 |\n\n*미결 금액 합계 = 215,446.90 USD (5건에 발주 존재, CT-2025-011 이 전체의 77%).*\n\n## 갱신 우선순위 제안\n\n**RenewalPriority(R8) 규칙(미결 노출액 순)에 자동갱신·리스크조항 강도를 가중해 조정**했습니다.\n\n**🔴 1순위 — CT-2025-011 (SUP-CN-003)** · 즉시 착수\n- 미결 노출액 $166,594(전체의 77%)로 압도적, **자동갱신 없음** → 방치 시 9/15 만기 후 공급 공백.\n- 유일하게 **강한 리스크조항**(연속 2회 지연 시 **계약해지 가능**) + 페널티 2% + 단가고정. 만기도 가장 임박한 축.\n- → 만기 25일 전. 재협상/연장 협상을 가장 먼저.\n\n**🟠 2순위 — CT-2025-026 (SUP-US-001)** · 미결 2건 $20,536, 자동갱신 없음, 10/01 만기. 노출액 2위 + 자동갱신 부재.\n\n**🟠 3순위 — CT-2025-024 (SUP-DE-001)** · 미결 2건 $18,482, 자동갱신 없음, **9/01 만기(가장 임박)**. 금액은 근소하게 낮지만 만기가 빨라 실무상 2순위와 병행 착수 권장.\n\n**🟡 4순위 — CT-2025-005 (SUP-KR-003)** · 미결 1건 $9,835, 자동갱신 없음, 10/01 만기.\n\n**🟢 5순위 — CT-2025-030 (SUP-IN-001)** · 미결 0건이나 **자동갱신 없음** + 페널티 2%. 노출액은 없지만 만기 후 자동 소멸하므로 신규 발주 예정이면 갱신 확인 필요.\n\n**⚪ 최하위 — CT-2025-020 (SUP-TW-001)** · **유일하게 자동갱신 ✅** + 미결 0건. 별도 조치 없이 자동 연장되므로 사실상 모니터링만.\n\n### 유의점\n- 상태 컬럼상 6건 모두 이미 `EXPIRING` 으로 표시돼 있어, 만기 임박이 시스템에도 반영된 상태입니다.\n- 페널티/리스크 조항이 명시적으로 채워진 계약은 **CT-2025-011 한 건뿐**이고, 나머지는 `risk_clause` 가 비어 있어(페널티율만 존재) 지연 리스크 노출은 CT-2025-011에 집중돼 있습니다.\n- 금액은 `total_amount_usd` 기준 미결(OPEN/PARTIAL/DELAYED) 발주 합계이며, 결과는 truncate 없이 전체 6건입니다.",
+  "elapsed_s": 98.2,
+  "tool_calls": 7,
+  "tool_errors": 0,
+  "tools_used": [
+    "Skill",
+    "Read",
+    "ontology_graph_schema",
+    "ontology_get_datasource_schema",
+    "ontology_get_datasource_schema",
+    "ontology_query_datasource_sql",
+    "ontology_query_datasource_sql"
+  ],
+  "checks": [
+    {
+      "pattern": "CT-2025-011",
+      "hit": true
+    },
+    {
+      "pattern": "자동\\s*갱신[^\\n]{0,20}(없|아니|미적용|X|false|불가)|auto_renew[^\\n]{0,12}(false|False|0|아니)",
+      "hit": true
+    },
+    {
+      "pattern": "PO-2026-0117|미결",
+      "hit": true
+    }
+  ],
+  "queried": true,
+  "passed": true
+}

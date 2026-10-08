@@ -1,0 +1,303 @@
+{
+  "format_version": 1,
+  "name": "공급망 현황 — 운송 지연부터 공급사 계약까지",
+  "description": "골든 퀘스천이 없어 데이터가 있는 관측성 클래스(운송·재고)를 앞에 두고, 거래(발주·주문) → 예외(클레임·통관) → 마스터(공급사·계약) 순으로 붙여 배치했으며, 상위 클래스로 참조되는 Item·Customer·PurchaseOrderLine 은 첫 화면에서 제외했습니다.",
+  "model": {
+    "schema_id": "25a750b53a24",
+    "schema_name": "공급망 지식지도"
+  },
+  "widgets": [
+    {
+      "id": "w_3d36f20f",
+      "schema_name": "공급망 지식지도",
+      "class_name": "Shipment",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'etd' 이 서로 다른 시점이 28개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'transport_mode' 별로 나눕니다.",
+      "pinned": false,
+      "dimensions": [
+        "etd",
+        "transport_mode"
+      ],
+      "measures": [
+        {
+          "property": "delay_days",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 2
+      },
+      "title": "선적·운송 지연 현황",
+      "options": {}
+    },
+    {
+      "id": "w_f1666187",
+      "schema_name": "공급망 지식지도",
+      "class_name": "StockDaily",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'snapshot_date' 이 서로 다른 시점이 30개라 추이가 그려집니다. 수치 4개의 추이를 봅니다.",
+      "pinned": false,
+      "dimensions": [
+        "snapshot_date"
+      ],
+      "measures": [
+        {
+          "property": "on_hand_qty",
+          "agg": "avg",
+          "label": null
+        },
+        {
+          "property": "reserved_qty",
+          "agg": "avg",
+          "label": null
+        },
+        {
+          "property": "avg_daily_usage",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 2
+      },
+      "title": "일별 재고 스냅샷",
+      "options": {}
+    },
+    {
+      "id": "w_2173aee7",
+      "schema_name": "공급망 지식지도",
+      "class_name": "PurchaseOrder",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'order_date' 이 서로 다른 시점이 26개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'status' 별로 나눕니다.",
+      "pinned": false,
+      "dimensions": [
+        "order_date",
+        "status"
+      ],
+      "measures": [
+        {
+          "property": "total_amount_usd",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "w": 6,
+        "h": 2
+      },
+      "title": "발주 진행 상황",
+      "options": {}
+    },
+    {
+      "id": "w_00ed43b3",
+      "schema_name": "공급망 지식지도",
+      "class_name": "SalesOrder",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'order_date' 이 서로 다른 시점이 28개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'so_status' 별로 나눕니다.",
+      "pinned": false,
+      "dimensions": [
+        "order_date",
+        "so_status"
+      ],
+      "measures": [
+        {
+          "property": "qty",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "w": 6,
+        "h": 2
+      },
+      "title": "고객 주문 납기",
+      "options": {}
+    },
+    {
+      "id": "w_f4ea38b8",
+      "schema_name": "공급망 지식지도",
+      "class_name": "ClaimTicket",
+      "widget_kind": "table",
+      "rule": "O10",
+      "reason": "어느 규칙에도 맞지 않아 표로 봅니다. 억지로 차트를 그리지 않습니다.",
+      "pinned": false,
+      "dimensions": [
+        "ticket_no",
+        "cust_no",
+        "so_no",
+        "sku_code",
+        "opened_date",
+        "category",
+        "severity",
+        "ticket_status"
+      ],
+      "measures": [],
+      "filters": [],
+      "time_grain": null,
+      "top_n": null,
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "w": 6,
+        "h": 2
+      },
+      "title": "고객 클레임",
+      "options": {}
+    },
+    {
+      "id": "w_6b6f4c86",
+      "schema_name": "공급망 지식지도",
+      "class_name": "CustomsDeclaration",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'filed_date' 이 서로 다른 시점이 19개라 추이가 그려집니다. 수치 2개의 추이를 봅니다. 'fta_applied' 별로 나눕니다.",
+      "pinned": false,
+      "dimensions": [
+        "filed_date",
+        "fta_applied"
+      ],
+      "measures": [
+        {
+          "property": "invoice_value_usd",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 6,
+        "y": 4,
+        "w": 6,
+        "h": 2
+      },
+      "title": "수출입 통관 신고",
+      "options": {}
+    },
+    {
+      "id": "w_ed93f3fc",
+      "schema_name": "공급망 지식지도",
+      "class_name": "Supplier",
+      "widget_kind": "heatmap",
+      "rule": "O8",
+      "reason": "'currency'(4) × 'incoterms'(5) 교차에 'tier' 를 올립니다.",
+      "pinned": false,
+      "dimensions": [
+        "currency",
+        "incoterms"
+      ],
+      "measures": [
+        {
+          "property": "tier",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": null,
+      "top_n": null,
+      "layout": {
+        "x": 0,
+        "y": 6,
+        "w": 6,
+        "h": 2
+      },
+      "title": "공급사 평가·납기준수",
+      "options": {}
+    },
+    {
+      "id": "w_78d6a969",
+      "schema_name": "공급망 지식지도",
+      "class_name": "Contract",
+      "widget_kind": "timeseries_line",
+      "rule": "O1",
+      "reason": "'start_date' 이 서로 다른 시점이 12개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'contract_type' 별로 나눕니다.",
+      "pinned": false,
+      "dimensions": [
+        "start_date",
+        "contract_type"
+      ],
+      "measures": [
+        {
+          "property": "penalty_rate",
+          "agg": "avg",
+          "label": null
+        }
+      ],
+      "filters": [],
+      "time_grain": "day",
+      "top_n": null,
+      "layout": {
+        "x": 6,
+        "y": 6,
+        "w": 6,
+        "h": 2
+      },
+      "title": "공급 계약 만기·페널티",
+      "options": {}
+    }
+  ],
+  "global_filters": [
+    {
+      "id": "gf_1",
+      "kind": "time",
+      "label": "order_date",
+      "source_class": "PurchaseOrder",
+      "property": "order_date",
+      "op": "between",
+      "value": null,
+      "options": []
+    },
+    {
+      "id": "gf_2",
+      "kind": "category",
+      "label": "status",
+      "source_class": "PurchaseOrder",
+      "property": "status",
+      "op": "eq",
+      "value": null,
+      "options": []
+    },
+    {
+      "id": "gf_3",
+      "kind": "category",
+      "label": "category",
+      "source_class": "ClaimTicket",
+      "property": "category",
+      "op": "eq",
+      "value": null,
+      "options": []
+    }
+  ],
+  "params": {},
+  "created_at": "2026-09-07T00:30:15+00:00",
+  "updated_at": "2026-09-07T00:30:15+00:00"
+}

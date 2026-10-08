@@ -35,11 +35,43 @@ uv run --with neo4j python scripts/inspect_catalog.py     # ontologic 루트에�
 
 ## Core Principles
 
-### I. 카탈로그는 인제스천 이후 Neo4j 가 단일 진실 원천이다
+### 0. 그래프 저장소는 두 가지다 — Neo4j 와 ontological-db
 
-data-fabric 이 소스 DB 를 introspect 해서 Neo4j 에 구조를 적재한다
+이 문서에서 "Neo4j" 라고 적힌 곳은 **그래프 저장소**를 뜻한다. 플랫폼은 두 가지 위에서
+돌 수 있고, 둘 다 정식 모드다.
+
+| 모드 | 그래프 | 콘솔 | 선택 |
+|---|---|---|---|
+| 기본 | Neo4j 5 | Neo4j Browser (게이트웨이 `/browser/`) | 아무 설정 없음 |
+| ontological | ontological-db (PostgreSQL + 확장) | ontological 포털 (`:7474`) | `ONTOLOGY_STUDIO_GRAPH=ontological` · `docker-compose.ontological.yml` |
+
+**두 모드의 공통점이 이 설계의 요점이다.** 애플리케이션 코드에는 저장소 분기가 없다.
+ontological-db 가 같은 **Bolt 프로토콜**을 말하고 같은 `neo4j` 드라이버가 붙으므로,
+바뀌는 것은 `NEO4J_URI` 와 자격증명뿐이다. 그래서 아래 모든 원칙은 두 모드에 **그대로**
+적용된다 — I 의 "카탈로그가 단일 진실 원천" 도, IV 의 "전역 삭제 금지" 도 저장소가
+무엇이든 같다.
+
+다른 점은 셋뿐이고, 전부 배선이지 규칙이 아니다.
+
+- **자격증명이 PostgreSQL 롤이다.** Neo4j 사용자 저장소가 없다 — psql 로 못 보는 행은
+  Bolt 로도 못 본다.
+- **콘솔이 다르다.** 포털은 프레임 가드를 내보내지 않고 서버가 DB 에 붙으므로, 프록시도
+  자동 로그인도 필요 없다. 프런트엔드 **빌드 시점**에 정해진다(`VITE_GRAPH_CONSOLE`).
+- **ontological 스택에 Neo4j 는 어디에도 없다.** "정의해 두고 안 띄우는" 것이 아니라
+  없다. 게이트웨이 이미지조차 Neo4j Browser 프록시 블록이 삭제된 채로 구워진다 —
+  남겨 두면 nginx 가 기동 시 `neo4j` 이름을 풀지 못해 게이트웨이가 통째로 죽고,
+  `/api/gateway/**` 뒤의 서비스가 전부 함께 죽는다. (2026-08-16 실측)
+
+> 확인: `docker compose -f docker-compose.ontological.yml config --services` 에 neo4j 가
+> 없다 · `podman ... ps` 에 `-neo4j-1` 컨테이너가 없다 ·
+> `uv run --with neo4j python tests/graph_backend/neo4j_compat_probe.py` 가 두 저장소
+> 모두에서 통과한다
+
+### I. 카탈로그는 인제스천 이후 그래프가 단일 진실 원천이다
+
+data-fabric 이 소스 DB 를 introspect 해서 그래프에 구조를 적재한다
 (`POST /api/datasources/{name}/extract-metadata-sync`). 그 이후 테이블 구조를 알아야
-하는 코드는 **소스 DB 를 다시 조회하지 않고 Neo4j 를 읽는다.**
+하는 코드는 **소스 DB 를 다시 조회하지 않고 그래프를 읽는다.**
 
 - 카탈로그를 소비하는 서비스는 DB 자격증명을 보유하지 않는다. 데이터소스는 **이름으로만**
   지칭한다.
@@ -49,6 +81,48 @@ data-fabric 이 소스 DB 를 introspect 해서 Neo4j 에 구조를 적재한다
   했고, 두 경로가 생기면 어긋난다.
 
 > 근거: [`docs/catalog-schema.md` — 그래프 모양](../../docs/catalog-schema.md)
+
+#### 온톨로지 **모델**은 카탈로그가 아니다 — 원천은 스튜디오, 그래프에는 발행한다
+
+카탈로그(`:DataSource`/`:Schema`/`:Table`/`:Column`)의 writer 는 data-fabric 하나다. 온톨로지
+모델(클래스·관계·바인딩·behavior)은 **다른 것**이고, 원천은 ontology-studio 의 저장소다.
+
+런타임 MCP 는 스튜디오가 떠 있지 않은 환경에서 돌아야 하므로, 모델을 그래프에 **발행**한다
+(`POST /api/schema/{id}/publish`). 규칙:
+
+- 발행물은 `_Ontology*` 접두 라벨만 쓴다. domain-layer 가 같은 그래프에 `:OntologySchema` ·
+  `:OntologyType` · `:OntologyBehavior` 를 쓰고 있어, 접두가 없으면 두 온톨로지가 섞인다.
+- 발행물에 **자격증명을 싣지 않는다.** 카탈로그의 `:DataSource` 가 평문 password 를 갖는
+  것과 대조된다 — 발행은 그것을 복제하지 않는다.
+- 발행·철회는 **자기 라벨 범위만** 건드린다. 카탈로그와 다른 그룹을 지우지 않는다.
+- 클래스 **존재**의 권위는 `db.labels()` 다 — 두 백엔드가 모두 구현하고, 둘 다 인스턴스가
+  0건인 클래스를 포함하는 유일한 조회이기 때문이다. 다만 그 목록에는 카탈로그·text2sql·
+  analyzer·domain-layer 의 라벨이 섞여 있으므로 **발행 레지스트리와 교집합**을 취한다.
+- 가상 클래스는 **앵커 노드 없이** 제약 선언만으로 그래프 스키마에 등재한다. 인스턴스 0건
+  (원칙 VII · spec 001 SC-001)이 유지돼야 한다.
+
+**두 백엔드에서 실제로 갈리는 지점** (2026-08-17 실측, `scripts/verify_ontological_backend.py`)
+
+"저장소 분기가 없다"는 것은 *분기문을 쓰지 않는다*는 뜻이지 *능력이 같다*는 뜻이 아니다.
+아래는 ontological-db 에 **없는** 것들이고, 코드는 분기 대신 **시도하고 안 되면 대체**한다.
+
+| 쓰지 말 것 | 대신 | 이유 |
+|---|---|---|
+| `SHOW CONSTRAINTS` / `SHOW INDEXES` | `db.labels()` + 발행 레지스트리 | 파서가 받지 않는다 |
+| `db.schema.visualization()` / `nodeTypeProperties()` | 발행 레지스트리 | 프로시저가 없다 |
+| `properties(n)` | 노드를 통째로 RETURN | 함수가 없다 (`keys()` 는 있다) |
+| `n[k]` 동적 속성 접근 | 선언된 속성명으로 정적 접근 | jsonb→integer 캐스트 오류 |
+
+- **클래스는 `_Entity` 의 하위 타입으로 먼저 선언한 뒤 제약을 건다.** ontological-db 에는
+  진짜 타입 시스템이 있어, 제약이 클래스를 루트 타입으로 만들면 그 뒤로
+  `(:_Entity:Class)` 인스턴스가 **영구히 거부**된다. 발행이 순서를 지킨다.
+- **그래프를 여는 모든 경로는 `NEO4J_DATABASE` 를 넘긴다** (`tools.session_kwargs()`).
+  Neo4j 에서는 데이터베이스, ontological-db 에서는 **그래프**를 고른다. 넘기지 않으면 서버
+  기본 그래프만 쓰게 되고, 자체 세션을 여는 스크립트가 **다른 그래프에 써 버린다** — 실제로
+  겪었다.
+
+> 근거: [`docs/graph-schema-contract.md`](../../docs/graph-schema-contract.md) ·
+> [spec 010](../../specs/010-graph-published-ontology-mcp/spec.md)
 
 ### II. 노드 정체성 규칙을 지키고, Table 은 항상 데이터소스로 함께 필터링한다
 
@@ -222,9 +296,12 @@ data-fabric 의 `GET /api/datasources/{name}/connection` 은 비밀번호를 그
 behavior 가 실제 SQL 로 확장된다.
 
 - `batch_ingest` / `entity_create` 대상이 아니다.
-- 따라서 `vector_search` 와 `graph_stats` 의 노드 통계에 보이지 않는다. `graph_stats` 가
-  `virtual_classes` 를 별도로 보고하고, 답변 에이전트는 데이터성 질문에서 `behavior_list`
-  를 먼저 호출해야 한다. 이것이 유일한 발견 경로다.
+- 따라서 노드 통계(`vector_search` · `graph_stats` · `ontology_list_schemas`)에 보이지
+  않는다. **답변 에이전트는 데이터성 질문에서 가상 클래스를 먼저 발견해야 한다.** 발견
+  경로는 질의 경로에 따라 둘이다 (spec 012):
+  - 표준 MCP 경유 — `graph://schema` 의 `binding_kind: virtual` (기본 경로)
+  - 내장 도구 경유 — `graph_stats` 의 `virtual_classes`, 그리고 `behavior_list`
+  둘 중 무엇도 부르지 않고 낸 "데이터가 없다" 는 답은 오답이다.
 - 그래프 UI 는 인스턴스 개수 대신 `가상` 을 표시한다. 0 으로 표시하면 "데이터가 없다"로
   오독된다.
 
@@ -287,6 +364,14 @@ domain-layer 의 `value.replace("'", "''")` 후 문자열 연결 방식은 복�
   도구를 올리지 않는다 — 내장 에이전트가 가진 권한과 정확히 같아야 한다.
 - 읽기 전용 검색 서버(`ontology_mcp`)에 mutation 도구를 얹지 않는다. 그 서버의 `TOOL_NAMES`
   는 보안 경계다. 에이전트용 도구는 별도 모듈(`agent_bridge_mcp`)에 둔다.
+- 그 서버에 **읽기 전용** 도구를 더할 때도 `TOOL_NAMES` 는 건드리지 않는다. 라이브 데이터에
+  닿는 것은 `DATASOURCE_TOOL_NAMES` 에 두고 `MCP_ALLOW_DATASOURCE_EXPANSION` 으로 잠근다 —
+  꺼진 상태의 표면이 이전과 **정확히 같아야** 한다 (spec 001 SC-006).
+- 외부 Cypher 표면은 `:DataSource`·`:Schema`·`:Table`·`:Column` 과 `_Ontology*` 를 **차단**
+  한다. 앞의 넷은 평문 자격증명을, 뒤는 `sql_template` 을 갖는다. `labels(n)` 문자열 비교
+  우회도 함께 막는다 — 라벨 문법만 막으면 그냥 돌아간다.
+- 런타임 리더(`ontology_runtime`)는 스튜디오 저장소를 import 하지 않는다. 규율로는 유지되지
+  않으므로 import 그래프를 검사하는 테스트가 강제한다.
 - **CLI 가 못 하는 일은 숨기지 않는다.** 헤드리스 입력을 받지 못하는 에이전트(Codex)에
   실행 중 지시를 보내면 큐에 넣고 버리는 대신 거부를 반환한다.
 
@@ -323,6 +408,37 @@ domain-layer 의 `value.replace("'", "''")` 후 문자열 연결 방식은 복�
   않으면 존재하지 않는 경로로 파서를 짠다.
 - 스킬은 자기가 받을 항목과 **빠졌을 때 무엇을 할지**를 본문에 갖는다. 그래야 폼이 없는
   단독 실행에서도 같은 절차가 성립한다. 그 판정을 코드에 두면 세 번째 지시문 원천이 된다.
+
+
+#### 추출한 지식은 후보로 쌓고, 신뢰도 게이트를 지난 것만 그래프에 쓴다
+
+LLM·파서가 문서에서 뽑은 엔터티·관계·속성은 **바로 그래프에 쓰지 않는다.** 환각과 허위 관계가
+그래프에 섞이면 나중에 어느 것이 근거 있는 사실인지 가릴 수 없다.
+↳ [spec 013](../../specs/013-extraction-confidence-hitl-quality/spec.md) ·
+`ontology-studio/backend/src/modules/quality/`
+
+- 문서 추출의 그래프 쓰기는 `quality/ingest_gate.py` **한 곳**이다. 트랜잭션 메타데이터에
+  `actor / source / reason` 을 싣고, 노드·엣지에 `_confidence / _run_id / _evidence_ref` 를 남긴다.
+  이 경로는 Bolt 만 쓴다 — ontological-db 내부 SQL 을 부르지 않는다.
+- 복합 신뢰도 S_c 가 하한 미만이거나 스키마 게이트(G_onto)를 어기면 **DLQ 로 격리**한다.
+  버리지 않는다 — 원인 코드와 함께 남기고, 규칙을 고친 뒤 재처리한다. 원인 코드는 **추가만**
+  한다(`quality/codes.py`). 이름을 바꾸면 이미 쌓인 항목이 고아가 된다.
+- **검수 결정(승인·기각·수정)과 DLQ 재처리는 에이전트 도구로 주지 않는다.** `causal_apply` 와
+  같은 이유 — 사람의 판단을 프롬프트가 아니라 구조로 강제한다.
+- 사람이 승인해도 **스키마를 어기는 사실은 쓰지 않는다.** 스키마를 먼저 고친다.
+- 사람이 내린 결정은 재추출이 덮지 않는다. 후보는 (스키마, 종류, 주어, 술어, 목적어)
+  fingerprint 로 식별한다.
+- 스키마(TBox) 변경 제안은 점수와 무관하게 **항상 전문가 검수**로 간다. 자동 반영도, 점수 미달
+  폐기도 하지 않는다.
+- **검수는 온톨로지 구축의 한 단계다.** 빌드 스킬(`ontology-build`)의 Phase 4 가 `quality_checkup` 을
+  호출하고, 사람의 판단은 구축 화면의 ‘검수’ 탭(같은 저장소)에서 한다. 데이터를 넣는 경로는 구축
+  대화뿐이다 — 품질 화면에 별도의 적재 경로를 두지 않는다(두 경로는 반드시 어긋난다).
+  문장 추출은 `extract_triples`, 표는 `table_ingest`(원천 점검 규칙 포함)로 넣는다.
+- 빌드 보고서의 검수 건수는 **백엔드가 저장소에서 읽어 붙인다**(`build_report.quality`). 에이전트가
+  적은 숫자를 화면에 그대로 보이지 않는다.
+- `batch_ingest`(정규식 파서 경로)는 **구조 위반만** 막는다 — 식별자 결측, 끝점 없는 관계,
+  선언된 관계의 정의역·공역 위반. 미등록 클래스는 막지 않는다: 빌드 에이전트가 데이터에서
+  스키마를 만드는 흐름이 그것을 전제로 한다.
 
 ---
 

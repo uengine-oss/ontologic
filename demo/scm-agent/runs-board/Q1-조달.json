@@ -1,0 +1,100 @@
+{
+  "id": "Q1-조달",
+  "question": "발주 PO-2026-0117 의 납기 리스크는 어떤 상태이며 계약상 페널티 발동 요건을 충족하는가?",
+  "elapsed_s": 58.5,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [
+      {
+        "op": "add",
+        "widget_id": "w_bde1fd47",
+        "widget_kind": "timeseries_line"
+      },
+      {
+        "op": "add",
+        "widget_id": "w_2ef34a8b",
+        "widget_kind": "timeseries_line"
+      }
+    ],
+    "errors": [],
+    "applied": false,
+    "patch": [
+      {
+        "op": "add",
+        "value": {
+          "id": "w_bde1fd47",
+          "schema_name": "공급망 지식지도",
+          "class_name": "PurchaseOrder",
+          "widget_kind": "timeseries_line",
+          "rule": "O1",
+          "reason": "'order_date' 이 서로 다른 시점이 26개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'status' 별로 나눕니다.",
+          "pinned": false,
+          "dimensions": [
+            "order_date",
+            "status"
+          ],
+          "measures": [
+            {
+              "property": "total_amount_usd",
+              "agg": "avg",
+              "label": null
+            }
+          ],
+          "filters": [],
+          "time_grain": "day",
+          "top_n": null,
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 2
+          },
+          "title": "발주 상세 — 약속 납기·계약 연결",
+          "options": {}
+        }
+      },
+      {
+        "op": "add",
+        "value": {
+          "id": "w_2ef34a8b",
+          "schema_name": "공급망 지식지도",
+          "class_name": "Shipment",
+          "widget_kind": "timeseries_line",
+          "rule": "O1",
+          "reason": "'etd' 이 서로 다른 시점이 28개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'transport_mode' 별로 나눕니다.",
+          "pinned": false,
+          "dimensions": [
+            "etd",
+            "transport_mode"
+          ],
+          "measures": [
+            {
+              "property": "delay_days",
+              "agg": "avg",
+              "label": null
+            }
+          ],
+          "filters": [],
+          "time_grain": "day",
+          "top_n": null,
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 2
+          },
+          "title": "발주별 선적 실적 — 약속 대비 실도착",
+          "options": {}
+        }
+      }
+    ],
+    "note": "특정 발주의 납기 리스크를 판정하려면 promised_date 와 실도착(ata)이 행 단위로 보여야 하므로, 집계 추이 위젯 옆에 발주·선적 상세 테이블을 추가합니다.",
+    "question": "발주 PO-2026-0117 의 납기 리스크는 어떤 상태이며 계약상 페널티 발동 요건을 충족하는가?"
+  }
+}

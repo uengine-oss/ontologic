@@ -1,0 +1,78 @@
+{
+  "count": {
+    "rows": [
+      {
+        "c": 33
+      }
+    ],
+    "row_count": 1,
+    "truncated": false
+  },
+  "rows": {
+    "rows": [
+      {
+        "pid": "PROD-001"
+      },
+      {
+        "pid": "PROD-001"
+      },
+      {
+        "pid": "PROD-001"
+      },
+      {
+        "pid": "PROD-002"
+      },
+      {
+        "pid": "PROD-002"
+      },
+      {
+        "pid": "PROD-002"
+      },
+      {
+        "pid": "PROD-003"
+      },
+      {
+        "pid": "PROD-003"
+      },
+      {
+        "pid": "PROD-003"
+      },
+      {
+        "pid": "PROD-004"
+      },
+      {
+        "pid": "PROD-004"
+      },
+      {
+        "pid": "PROD-004"
+      },
+      {
+        "pid": "PROD-004"
+      },
+      {
+        "pid": "PROD-005"
+      },
+      {
+        "pid": "PROD-005"
+      },
+      {
+        "pid": "PROD-005"
+      },
+      {
+        "pid": "PROD-005"
+      },
+      {
+        "pid": "PROD-006"
+      },
+      {
+        "pid": "PROD-006"
+      },
+      {
+        "pid": "PROD-007"
+      }
+    ],
+    "row_count": 20,
+    "truncated": true,
+    "note": "상위 20건만 반환했습니다."
+  }
+}

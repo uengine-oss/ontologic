@@ -1,0 +1,10 @@
+[
+  "ontology_get_datasource_schema",
+  "ontology_get_schema",
+  "ontology_graph_cypher",
+  "ontology_list_entities",
+  "ontology_list_schemas",
+  "ontology_query",
+  "ontology_query_datasource_sql",
+  "ontology_resolve_entity"
+]

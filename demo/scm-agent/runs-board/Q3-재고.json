@@ -1,0 +1,152 @@
+{
+  "id": "Q3-재고",
+  "question": "안전재고를 이탈한 품목은 무엇이고 재고커버일수는 며칠이며 대체 공급사는 누구인가?",
+  "elapsed_s": 45.2,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "dimensions",
+        "before": [
+          "snapshot_date"
+        ],
+        "after": [
+          "snapshot_date",
+          "sku_code"
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "dimensions",
+        "before": [
+          "snapshot_date",
+          "sku_code"
+        ],
+        "after": [
+          "snapshot_date",
+          "sku_code",
+          "warehouse_cd"
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "measures",
+        "before": [
+          {
+            "property": "on_hand_qty",
+            "agg": "avg",
+            "label": null
+          },
+          {
+            "property": "reserved_qty",
+            "agg": "avg",
+            "label": null
+          },
+          {
+            "property": "avg_daily_usage",
+            "agg": "avg",
+            "label": null
+          }
+        ],
+        "after": [
+          {
+            "property": "on_hand_qty",
+            "agg": "min"
+          },
+          {
+            "property": "reserved_qty",
+            "agg": "max"
+          },
+          {
+            "property": "in_transit_qty",
+            "agg": "sum"
+          },
+          {
+            "property": "avg_daily_usage",
+            "agg": "avg"
+          }
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "title",
+        "before": "일별 재고 스냅샷",
+        "after": "품목·창고별 재고 수준 (가용재고·일평균사용량)"
+      },
+      {
+        "op": "remove",
+        "widget_id": "w_f4ea38b8"
+      },
+      {
+        "op": "remove",
+        "widget_id": "w_6b6f4c86"
+      }
+    ],
+    "errors": [],
+    "applied": false,
+    "patch": [
+      {
+        "op": "add",
+        "widget_id": "w_f1666187",
+        "field": "dimensions",
+        "value": "sku_code"
+      },
+      {
+        "op": "add",
+        "widget_id": "w_f1666187",
+        "field": "dimensions",
+        "value": "warehouse_cd"
+      },
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "measures",
+        "value": [
+          {
+            "property": "on_hand_qty",
+            "agg": "min"
+          },
+          {
+            "property": "reserved_qty",
+            "agg": "max"
+          },
+          {
+            "property": "in_transit_qty",
+            "agg": "sum"
+          },
+          {
+            "property": "avg_daily_usage",
+            "agg": "avg"
+          }
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_f1666187",
+        "field": "title",
+        "value": "품목·창고별 재고 수준 (가용재고·일평균사용량)"
+      },
+      {
+        "op": "remove",
+        "widget_id": "w_f4ea38b8"
+      },
+      {
+        "op": "remove",
+        "widget_id": "w_6b6f4c86"
+      }
+    ],
+    "note": "재고 위험 판별에 필요한 품목·창고 축과 최저 가용재고·일평균사용량을 재고 위젯에 채우고, 질문과 무관한 클레임·통관 위젯을 뺐습니다.",
+    "question": "안전재고를 이탈한 품목은 무엇이고 재고커버일수는 며칠이며 대체 공급사는 누구인가?"
+  }
+}

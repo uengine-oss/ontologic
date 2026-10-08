@@ -1,0 +1,61 @@
+{
+  "id": "Q4-계약",
+  "question": "만기가 60일 이내인 계약별 미결 발주 노출액을 집계해서 갱신 우선순위를 보여줘.",
+  "elapsed_s": 47.4,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [
+      {
+        "op": "add",
+        "widget_id": "w_96e667c2",
+        "widget_kind": "timeseries_line"
+      }
+    ],
+    "errors": [],
+    "applied": false,
+    "patch": [
+      {
+        "op": "add",
+        "value": {
+          "id": "w_96e667c2",
+          "schema_name": "공급망 지식지도",
+          "class_name": "PurchaseOrder",
+          "widget_kind": "timeseries_line",
+          "rule": "O1",
+          "reason": "'order_date' 이 서로 다른 시점이 26개라 추이가 그려집니다. 수치 1개의 추이를 봅니다. 'status' 별로 나눕니다.",
+          "pinned": false,
+          "dimensions": [
+            "order_date",
+            "status"
+          ],
+          "measures": [
+            {
+              "property": "total_amount_usd",
+              "agg": "avg",
+              "label": null
+            }
+          ],
+          "filters": [],
+          "time_grain": "day",
+          "top_n": null,
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 2
+          },
+          "title": "계약별 미결 발주 노출액 (갱신 우선순위)",
+          "options": {}
+        }
+      }
+    ],
+    "note": "PurchaseOrder 를 contract_id·status 로 묶어 total_amount_usd 합계를 내는 위젯을 추가했습니다 — 위젯 종류는 지정하지 않았으므로 추천 엔진이 데이터 모양(식별자 차원 19개 + 수치 합계, 시간축 없음)으로 결정합니다. 다만 '만기 60일 이내' 조건은 이번 패치에 넣지 못했습니다: 전달받은 클래스·속성 목록이 CustomsDeclaration 에서 잘려 Contract 의 만기일 속성명(end_date/expiry_date 등)을 확인할 수 없었고, 속성명을 지어내면 검증에서 걸립니다. 또한 만기(Contract) 기준 필터는 노출액(PurchaseOrder) 위젯과 클래스가 달라 위젯 단독 정의로는 표현되지 않으므로, Contract 만기 속성명을 알려주시면 (1) 해당 속성으로 global_filter 를 추가하거나 (2) Contract 만기 위젯을 함께 배치해 contract_id 로 대조하는 방식 중 하나로 이어서 패치하겠습니다.",
+    "question": "만기가 60일 이내인 계약별 미결 발주 노출액을 집계해서 갱신 우선순위를 보여줘."
+  }
+}

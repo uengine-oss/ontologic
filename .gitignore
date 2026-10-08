@@ -53,6 +53,12 @@ sample/
 # 않으므로 `docs/*` 로 쓴다.
 docs/*
 !docs/catalog-schema.md
+!docs/graph-schema-contract.md
+!docs/agentic-rag-walkthrough.md
+# 사업·설계 결정 문서는 스펙이 링크하므로 추적한다. 증거(영상·캡처, 11MB)는 계속 무시한다.
+!docs/business/
+docs/business/*
+!docs/business/*.md
 backup/
 rwis-installer/
 langchain-text2sql/
@@ -109,3 +115,8 @@ Thumbs.db
 # Private Datas
 p_*
 .cursor
+# 데이터 디렉터리 백업과 데모 영상·음성 생성물 (스크립트로 재생성)
+data.bak.*/
+demo/**/*.mp4
+demo/**/*.webm
+demo/**/*.wav

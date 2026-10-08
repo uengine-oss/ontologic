@@ -1,0 +1,11 @@
+{
+  "blocked": {
+    "error": "'Table' 라벨은 조회할 수 없습니다. 이 라벨은 데이터 패브릭 카탈로그와 발행 레지스트리에 속하며 접속 정보와 SQL 템플릿을 포함합니다. 온톨로지 인스턴스(:_Entity)를 조회하세요."
+  },
+  "bypass": {
+    "error": "'DataSource' 라벨은 조회할 수 없습니다. 이 라벨은 데이터 패브릭 카탈로그와 발행 레지스트리에 속하며 접속 정보와 SQL 템플릿을 포함합니다. 온톨로지 인스턴스(:_Entity)를 조회하세요."
+  },
+  "call": {
+    "error": "읽기 전용 조회만 허용됩니다. MATCH / OPTIONAL MATCH / WHERE / WITH / RETURN 중심의 Cypher 만 사용하세요."
+  }
+}

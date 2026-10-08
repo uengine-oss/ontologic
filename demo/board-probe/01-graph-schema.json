@@ -1,0 +1,443 @@
+{
+  "models": [
+    {
+      "schema_id": "a0edf61cc416",
+      "name": "제조 하이브리드",
+      "description": "legacy.manufacturing 테이블 구조에서 생성",
+      "intent": "",
+      "golden_questions": [],
+      "format_version": 1,
+      "published_at": 1786947759.0137112
+    }
+  ],
+  "classes": [
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgDailyEquipment",
+      "description": "Mfg daily equipment (manufacturing.mfg_daily_equipment)",
+      "binding_kind": "virtual",
+      "property_names": [
+        "status_date",
+        "equipment_id",
+        "equipment_name",
+        "step_id",
+        "status",
+        "operating_hours",
+        "idle_hours",
+        "maintenance_hours",
+        "breakdown_hours",
+        "breakdown_count",
+        "mtbf_hours",
+        "mttr_hours",
+        "utilization_rate"
+      ],
+      "property_source": "published_registry",
+      "native": true,
+      "native_key": [
+        "status_date"
+      ],
+      "behavior_count": 1,
+      "source": {
+        "datasource": "legacy",
+        "schema": "manufacturing",
+        "table": "mfg_daily_equipment"
+      },
+      "key_columns": [
+        "status_date",
+        "equipment_id"
+      ]
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgDailyMaterialCost",
+      "description": "Mfg daily material cost (manufacturing.mfg_daily_material_cost)",
+      "binding_kind": "virtual",
+      "property_names": [
+        "cost_date",
+        "material_id",
+        "supplier_id",
+        "unit_price",
+        "purchase_qty",
+        "purchase_amount",
+        "consumption_qty",
+        "consumption_amount",
+        "stock_qty",
+        "stock_value",
+        "price_change_pct",
+        "lead_time_days",
+        "quality_score"
+      ],
+      "property_source": "published_registry",
+      "native": true,
+      "native_key": [
+        "cost_date"
+      ],
+      "behavior_count": 0,
+      "source": {
+        "datasource": "legacy",
+        "schema": "manufacturing",
+        "table": "mfg_daily_material_cost"
+      },
+      "key_columns": [
+        "cost_date",
+        "material_id",
+        "supplier_id"
+      ]
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgDailyProcessMetrics",
+      "description": "Mfg daily process metrics (manufacturing.mfg_daily_process_metrics)",
+      "binding_kind": "virtual",
+      "property_names": [
+        "metric_date",
+        "product_id",
+        "step_id",
+        "shift",
+        "planned_qty",
+        "actual_qty",
+        "good_qty",
+        "defect_qty",
+        "scrap_qty",
+        "planned_time_min",
+        "actual_time_min",
+        "lead_time_min",
+        "cycle_time_sec",
+        "setup_time_min",
+        "wait_time_min",
+        "rework_count",
+        "rework_qty",
+        "rework_time_min",
+        "defect_rate",
+        "rework_rate",
+        "first_pass_yield",
+        "oee",
+        "availability",
+        "performance",
+        "quality_rate",
+        "temperature_avg",
+        "humidity_avg",
+        "pressure_avg"
+      ],
+      "property_source": "published_registry",
+      "native": true,
+      "native_key": [
+        "metric_date"
+      ],
+      "behavior_count": 0,
+      "source": {
+        "datasource": "legacy",
+        "schema": "manufacturing",
+        "table": "mfg_daily_process_metrics"
+      },
+      "key_columns": [
+        "metric_date",
+        "product_id",
+        "step_id",
+        "shift"
+      ]
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgDailyQualityIssue",
+      "description": "Mfg daily quality issue (manufacturing.mfg_daily_quality_issue)",
+      "binding_kind": "virtual",
+      "property_names": [
+        "issue_date",
+        "issue_id",
+        "product_id",
+        "step_id",
+        "issue_type",
+        "severity",
+        "affected_qty",
+        "root_cause",
+        "corrective_action",
+        "resolution_time_hr",
+        "cost_impact",
+        "is_resolved"
+      ],
+      "property_source": "published_registry",
+      "native": true,
+      "native_key": [
+        "issue_date"
+      ],
+      "behavior_count": 0,
+      "source": {
+        "datasource": "legacy",
+        "schema": "manufacturing",
+        "table": "mfg_daily_quality_issue"
+      },
+      "key_columns": [
+        "issue_date",
+        "issue_id"
+      ]
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgProcessStep",
+      "description": "Mfg process step (manufacturing.mfg_process_step)",
+      "binding_kind": "materialized",
+      "property_names": [
+        "created_date",
+        "is_active",
+        "machine_type",
+        "standard_time_min",
+        "step_id",
+        "step_name",
+        "step_sequence",
+        "step_type",
+        "worker_skill_level"
+      ],
+      "property_source": "graph_schema_api",
+      "native": true,
+      "native_key": [
+        "step_id"
+      ],
+      "behavior_count": 0
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgProduct",
+      "description": "Mfg product (manufacturing.mfg_product)",
+      "binding_kind": "materialized",
+      "property_names": [
+        "created_date",
+        "is_active",
+        "lead_time_days",
+        "min_order_qty",
+        "product_category",
+        "product_id",
+        "product_name",
+        "unit_cost",
+        "unit_price"
+      ],
+      "property_source": "graph_schema_api",
+      "native": true,
+      "native_key": [
+        "product_id"
+      ],
+      "behavior_count": 0
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgProductBom",
+      "description": "Mfg product bom (manufacturing.mfg_product_bom)",
+      "binding_kind": "materialized",
+      "property_names": [
+        "bom_id",
+        "created_date",
+        "material_id",
+        "product_id",
+        "quantity_required",
+        "unit_of_measure"
+      ],
+      "property_source": "graph_schema_api",
+      "native": true,
+      "native_key": [
+        "bom_id"
+      ],
+      "behavior_count": 0
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgProductRouting",
+      "description": "Mfg product routing (manufacturing.mfg_product_routing)",
+      "binding_kind": "materialized",
+      "property_names": [
+        "created_date",
+        "process_time_min",
+        "product_id",
+        "routing_id",
+        "setup_time_min",
+        "step_id",
+        "step_order"
+      ],
+      "property_source": "graph_schema_api",
+      "native": true,
+      "native_key": [
+        "routing_id"
+      ],
+      "behavior_count": 0
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "class_name": "MfgRawMaterial",
+      "description": "Mfg raw material (manufacturing.mfg_raw_material)",
+      "binding_kind": "materialized",
+      "property_names": [
+        "created_date",
+        "is_active",
+        "material_id",
+        "material_name",
+        "material_type",
+        "safety_stock_qty",
+        "supplier_id",
+        "unit_of_measure"
+      ],
+      "property_source": "graph_schema_api",
+      "native": true,
+      "native_key": [
+        "material_id"
+      ],
+      "behavior_count": 0
+    }
+  ],
+  "relationships": [
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PROCESS_STEP",
+      "from_class": "MfgProductRouting",
+      "to_class": "MfgProcessStep",
+      "description": "mfg_product_routing.step_id → mfg_process_step.step_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "step_id = step_id"
+        }
+      ],
+      "observed_in_graph": true
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PROCESS_STEP",
+      "from_class": "MfgDailyQualityIssue",
+      "to_class": "MfgProcessStep",
+      "description": "mfg_daily_quality_issue.step_id → mfg_process_step.step_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "step_id = step_id"
+        }
+      ],
+      "observed_in_graph": false
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PROCESS_STEP",
+      "from_class": "MfgDailyProcessMetrics",
+      "to_class": "MfgProcessStep",
+      "description": "mfg_daily_process_metrics.step_id → mfg_process_step.step_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "step_id = step_id"
+        }
+      ],
+      "observed_in_graph": false
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PROCESS_STEP",
+      "from_class": "MfgDailyEquipment",
+      "to_class": "MfgProcessStep",
+      "description": "mfg_daily_equipment.step_id → mfg_process_step.step_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "step_id = step_id"
+        }
+      ],
+      "observed_in_graph": false
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PRODUCT",
+      "from_class": "MfgProductRouting",
+      "to_class": "MfgProduct",
+      "description": "mfg_product_routing.product_id → mfg_product.product_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "product_id = product_id"
+        }
+      ],
+      "observed_in_graph": true
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PRODUCT",
+      "from_class": "MfgProductBom",
+      "to_class": "MfgProduct",
+      "description": "mfg_product_bom.product_id → mfg_product.product_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "product_id = product_id"
+        }
+      ],
+      "observed_in_graph": true
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PRODUCT",
+      "from_class": "MfgDailyQualityIssue",
+      "to_class": "MfgProduct",
+      "description": "mfg_daily_quality_issue.product_id → mfg_product.product_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "product_id = product_id"
+        }
+      ],
+      "observed_in_graph": false
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_PRODUCT",
+      "from_class": "MfgDailyProcessMetrics",
+      "to_class": "MfgProduct",
+      "description": "mfg_daily_process_metrics.product_id → mfg_product.product_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "product_id = product_id"
+        }
+      ],
+      "observed_in_graph": false
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_RAW_MATERIAL",
+      "from_class": "MfgProductBom",
+      "to_class": "MfgRawMaterial",
+      "description": "mfg_product_bom.material_id → mfg_raw_material.material_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "material_id = material_id"
+        }
+      ],
+      "observed_in_graph": true
+    },
+    {
+      "schema_name": "제조 하이브리드",
+      "name": "REFERENCES_MFG_RAW_MATERIAL",
+      "from_class": "MfgDailyMaterialCost",
+      "to_class": "MfgRawMaterial",
+      "description": "mfg_daily_material_cost.material_id → mfg_raw_material.material_id",
+      "properties": [
+        {
+          "name": "join",
+          "type": "string",
+          "description": "material_id = material_id"
+        }
+      ],
+      "observed_in_graph": false
+    }
+  ],
+  "counts": {
+    "classes": 9,
+    "virtual_classes": 4,
+    "relationships": 10
+  },
+  "usage": "데이터성 질문은 ontology_get_datasource_schema(class_name) 로 그 클래스의 컬럼을 먼저 확인한 뒤 ontology_query_datasource_sql 로 집계하세요."
+}

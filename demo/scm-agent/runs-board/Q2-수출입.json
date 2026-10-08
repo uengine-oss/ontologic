@@ -1,0 +1,110 @@
+{
+  "id": "Q2-수출입",
+  "question": "통관이 보류·반려된 신고 건의 사유는 무엇이며 신고 품목분류 코드가 품목 마스터와 일치하는가?",
+  "elapsed_s": 40.0,
+  "widget_kind": "",
+  "class_name": "",
+  "rule": "",
+  "row_count": 0,
+  "answer": "",
+  "error": "",
+  "raw": {
+    "valid": true,
+    "diff": [
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "widget_kind",
+        "before": "timeseries_line",
+        "after": "table"
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "dimensions",
+        "before": [
+          "filed_date",
+          "fta_applied"
+        ],
+        "after": [
+          "decl_id",
+          "ref_shipment_no",
+          "ref_item_code",
+          "direction",
+          "filed_date",
+          "fta_applied"
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "measures",
+        "before": [
+          {
+            "property": "invoice_value_usd",
+            "agg": "avg",
+            "label": null
+          }
+        ],
+        "after": []
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "time_grain",
+        "before": "day",
+        "after": null
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "title",
+        "before": "수출입 통관 신고",
+        "after": "통관 신고 건별 점검 — 신고번호·품목코드"
+      }
+    ],
+    "errors": [],
+    "applied": false,
+    "patch": [
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "widget_kind",
+        "value": "table"
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "dimensions",
+        "value": [
+          "decl_id",
+          "ref_shipment_no",
+          "ref_item_code",
+          "direction",
+          "filed_date",
+          "fta_applied"
+        ]
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "measures",
+        "value": []
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "time_grain",
+        "value": null
+      },
+      {
+        "op": "set",
+        "widget_id": "w_6b6f4c86",
+        "field": "title",
+        "value": "통관 신고 건별 점검 — 신고번호·품목코드"
+      }
+    ],
+    "note": "통관 위젯을 시계열 평균에서 신고 건별 표로 바꿔 각 건의 품목분류 코드와 선적 참조를 직접 대조할 수 있게 합니다.",
+    "question": "통관이 보류·반려된 신고 건의 사유는 무엇이며 신고 품목분류 코드가 품목 마스터와 일치하는가?"
+  }
+}

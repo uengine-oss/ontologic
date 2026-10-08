@@ -1,0 +1,138 @@
+[
+  {
+    "id": "S1-procurement",
+    "domain": "조달",
+    "agent": "조달 에이전트",
+    "title": "납기 리스크 감시 → 계약 페널티 판정",
+    "passed": true,
+    "tool_calls": 9,
+    "tool_errors": 0,
+    "elapsed_s": 81.4,
+    "tools_used": [
+      "Read",
+      "Bash",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  },
+  {
+    "id": "S2-customs",
+    "domain": "수출입",
+    "agent": "통관 에이전트",
+    "title": "통관 보류 사유 규명 → HS 코드 검증 → 정정신고 문안",
+    "passed": true,
+    "tool_calls": 6,
+    "tool_errors": 0,
+    "elapsed_s": 63.1,
+    "tools_used": [
+      "Read",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  },
+  {
+    "id": "S3-inventory",
+    "domain": "재고관리",
+    "agent": "재고 에이전트",
+    "title": "안전재고 이탈 감시 → 커버일수 산출 → 대체 공급사 식별",
+    "passed": true,
+    "tool_calls": 10,
+    "tool_errors": 0,
+    "elapsed_s": 126.3,
+    "tools_used": [
+      "Read",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  },
+  {
+    "id": "S4-contract",
+    "domain": "계약",
+    "agent": "계약 에이전트",
+    "title": "만기 임박 계약 감시 → 미결 발주 노출액 집계 → 갱신 우선순위",
+    "passed": true,
+    "tool_calls": 7,
+    "tool_errors": 0,
+    "elapsed_s": 98.2,
+    "tools_used": [
+      "Skill",
+      "Read",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  },
+  {
+    "id": "S5-purchasing",
+    "domain": "구매",
+    "agent": "구매 에이전트",
+    "title": "대체 소싱 비교표 → 발주서(PO) 초안 자동 생성",
+    "passed": true,
+    "tool_calls": 8,
+    "tool_errors": 0,
+    "elapsed_s": 94.0,
+    "tools_used": [
+      "Read",
+      "Bash",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  },
+  {
+    "id": "S6-customer-support",
+    "domain": "고객지원",
+    "agent": "고객지원 에이전트",
+    "title": "A2A 핸드오프 — 클레임 원인 역추적 → 고객 회신문 생성",
+    "passed": true,
+    "tool_calls": 12,
+    "tool_errors": 0,
+    "elapsed_s": 132.5,
+    "tools_used": [
+      "Read",
+      "ontology_graph_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_get_datasource_schema",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql",
+      "ontology_query_datasource_sql"
+    ],
+    "queried": true,
+    "run": 1
+  }
+]

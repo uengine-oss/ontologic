@@ -1,0 +1,496 @@
+{
+  "id": "S6-customer-support",
+  "domain": "고객지원",
+  "agent": "고객지원 에이전트",
+  "title": "A2A 핸드오프 — 클레임 원인 역추적 → 고객 회신문 생성",
+  "question": "고객 클레임 TK-2026-0031 (납기 문의)에 답해야 해. 해당 고객과 주문(SO)의 내용, 납기 리스크 원인을 연결된 발주/선적까지 역추적해서 확인하고, 고객에게 보낼 회신 초안을 작성해줘. 회신에는 원인, 현재 조치, 예상 납기 영향, 대안을 담아줘.",
+  "user_message": "[A2A 핸드오프] 조달 에이전트가 먼저 조사한 결과를 전달한다:\n\n먼저 워크플로우 참조 문서를 읽고 필요한 MCP 도구 스키마를 로드하겠습니다.도구가 모두 로드됐습니다. 검색 힌트 파일은 없네요. 이제 온톨로지 지도를 한 번 읽겠습니다.온톨로지 지도를 파악했습니다. 이 질문은 **공급망 지식지도**의 4개 가상 클래스에 걸쳐 있습니다:\n- `PurchaseOrder`(발주) → `Shipment`(선적, `ref_po_no=po_id`)\n- `PurchaseOrder.supplier_id` → `Supplier`(공급사)\n- `PurchaseOrder.contract_id` → `Contract`(계약: 페널티율·만기)\n\n모두 `virtual`(가상) 클래스라 그래프 노드가 없고 키 값으로 SQL 조인해야 합니다. `PO-2026-0117`은 이미 `po_id` 키 형식이므로, 네 클래스의 컬럼 스키마를 받겠습니다.4개 클래스 중 3개(`PurchaseOrder`·`Supplier`·`Contract`)는 `scm_erp` 데이터소스에, `Shipment`는 `scm_wms`에 있습니다. 데이터소스가 다르므로 두 개의 SQL로 나눠 DB가 조인·조회하게 합니다.조회를 마쳤습니다. 발주·공급사·계약(scm_erp)과 선적(scm_wms) 데이터가 모두 확인됐고, 온톨로지의 판단 개념(`DeliveryRisk`·`PenaltyTrigger`)을 적용해 정리합니다.\n\n---\n\n## 📦 발주 PO-2026-0117 납기 리스크 점검\n\n### 판정: 🔴 **DELAYED (지연 확정) — 납기 리스크 高**\n\n발주 상태가 이미 `DELAYED`이고, 선적 지연일수 9일이 납기약속일(2026-08-17)을 넘긴 데다 오늘(2026-08-21) 기준 실입고(ATA)가 아직 없습니다. 온톨로지 `DeliveryRisk` 규칙(발주 status=DELAYED, 또는 지연일수>0/ETA 초과 → 리스크)에 정확히 해당합니다.\n\n### 1) 선적 현황 — `scm_wms.shipment` 1행 (SHP-2026-0111)\n\n| 항목 | 값 |\n|---|---|\n| 선적번호 / B/L | SHP-2026-0111 / SBL778231 |\n| 운송·포워더 | 해상(SEA), KMTC |\n| ETD → ATD | 2026-08-04 → 실제 2026-08-08 (출항 4일 지연) |\n| ETA → ATA | 2026-08-17 → **미도착(ATA 없음)** |\n| 선적상태 | **CUSTOMS_HOLD** (통관 보류) |\n| **지연일수** | **9일** |\n| **지연사유** | **부산세관 서류심사 보류 — 원산지증명(C/O) 미첨부** |\n\n> 지연 원인은 운송이 아니라 **통관 서류 미비**입니다. 원산지증명 첨부로 즉시 해소 가능한 성격이라, 서류 보완이 시급합니다.\n\n### 2) 공급사 — `scm_erp.mst_supplier` (SUP-CN-003)\n\n| 항목 | 값 |\n|---|---|\n| 공급사 | **Shenzhen Goldline PCB** (중국 선전) |\n| 티어 / 평가점수 | Tier 1 / **3.6** (다소 낮음) |\n| 정시납품률(OTD) | **87.4%** |\n| 리드타임 | 18일 |\n| 인코텀즈 / 통화 | FOB / USD |\n\n### 3) 계약 조건 — `scm_erp.doc_contract` (CT-2025-011)\n\n| 항목 | 값 |\n|---|---|\n| 계약유형 | 연간공급 |\n| 기간(만기) | 2025-09-15 ~ **2026-09-15** → **만기 약 25일 남음** |\n| 계약상태 | **EXPIRING (만기 임박)** |\n| 자동갱신 | **아니오** |\n| 단가고정 | 예 |\n| **페널티율** | **2.0%** |\n| **리스크조항** | **\"납기 7일 초과 지연 시 건당 2% 페널티, 연속 2회 시 계약해지 가능\"** |\n\n### ⚠️ 페널티 노출 (온톨로지 `PenaltyTrigger` R1·R2)\n\n- **발동 요건 충족**: 실지연 **9일 > 계약 임계 7일** → 페널티 조항 발동 상태\n- **노출액 = 발주금액 × 페널티율 = $81,307.20 × 2.0% ≈ $1,626.14**\n\n### 종합 조치 제언\n1. **원산지증명(C/O) 즉시 보완** → 부산세관 CUSTOMS_HOLD 해소가 최우선 (지연 근본원인).\n2. **페널티 청구 근거 확보** — 이미 임계(7일) 초과. 약 **$1,626** 청구 가능하며, HIGH 우선순위 건.\n3. **계약 갱신 검토** — CT-2025-011은 **25일 뒤 만기 + 자동갱신 없음 + EXPIRING** 상태. 이번 지연(연속 2회 시 해지 조항)과 공급사 저조한 평가점수(3.6)를 함께 놓고 갱신 협상 조건을 재검토하세요.\n\n---\n**근거**: 그래프 지도 `공급망 지식지도`의 `PurchaseOrder→Shipment(ref_po_no=po_id)`, `→Supplier(supplier_id)`, `→Contract(contract_id)` 조인 경로. 데이터는 `scm_erp`(발주·공급사·계약, 1행)와 `scm_wms.shipment`(선적, 1행)에서 조회. 페널티 노출액은 위 계산식(발주금액×페널티율)으로 산출한 파생값입니다.\n\n---\n위 내용을 근거로 활용하되, 필요한 사실은 도구로 직접 확인하라.\n\n고객 클레임 TK-2026-0031 (납기 문의)에 답해야 해. 해당 고객과 주문(SO)의 내용, 납기 리스크 원인을 연결된 발주/선적까지 역추적해서 확인하고, 고객에게 보낼 회신 초안을 작성해줘. 회신에는 원인, 현재 조치, 예상 납기 영향, 대안을 담아줘.",
+  "session_id": "scm-demo-S6-customer-support-ef58aa60",
+  "backend": "ontology-studio /api/stream (AGENT_BACKEND=cliagents)",
+  "events": [
+    {
+      "event": "status",
+      "data": {
+        "message": "질문 응답 모드 실행 시작..."
+      },
+      "t": 0.0
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "조사를 시작하겠습니다. 먼저 워크플로우 참조 문서를 읽고, 필요한 MCP 도구 스키마를 로드하겠습니다.",
+        "node": "agent"
+      },
+      "t": 7.66
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01GzFe3PTEcYgUoGkc55s7n9",
+        "name": "Read",
+        "node": "Read",
+        "args": {
+          "file_path": "/Users/uengine/ontologic/ontology-studio/.cache/sandbox/sessions/scm-demo-S6-customer-support-ef58aa60answer/.claude/skills/ontologic-agentic-rag/references/two-step-retrieval.md"
+        },
+        "description": "Read 도구를 실행합니다"
+      },
+      "t": 9.15
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01GzFe3PTEcYgUoGkc55s7n9",
+        "name": "Read",
+        "content": "1\t# 2-step 검색 전략 — 스키마를 필요한 만큼만 받는다\n2\t\n3\t`ontology-answer` 스킬의 `references/search-strategy.md` 와 단계 구조가 같다. 다른 점은\n4\t도구 이름과, 스키마를 **한 클래스씩** 받는다는 것이다.\n5\t\n6\t## 왜 순서가 중요한가\n7\t\n8\t한 번에 모든 스키마를 받으면 세 가지가 동시에 나빠진다 — 토큰이 터지고, 추론 정확도가\n9\t떨어지고, DB 구조가 전부 노출된다. 그래서 이 순서는 편의가 아니라 설계다.\n10\t\n11\t## 0단계: 지도 한 번 — `graph://schema`\n12\t\n13\t**세션당 한 번.** 클래스·관계와 \"누가 데이터소스를 갖는가\"만 들어 있다. **컬럼은 없다.**\n14\t\n15\t여기서 볼 것:\n16\t\n17\t- `binding_kind: \"virtual\"` — 이 클래스는 실시간으로 DB 를 읽는다. 그래프에 노드가 **0건**\n18\t  이라 벡터 검색으로는 절대 발견되지 않는다.\n19\t- `binding_kind: \"materialized\"` — 그래프에 인스턴스가 있다. Cypher 로 탐색한다.\n20\t- `source: {datasource, schema, table}` — 그 클래스가 어디를 가리키는지.\n21\t\n22\t발행된 것이 없으면 `note` 에 발행하라는 안내가 온다. 그 상태에서는 아무 조회도 의미가 없다.\n23\t\n24\t## 0.5단계: 이름을 키로 바꾼다 — `ontology_resolve_entity`\n25\t\n26\t질문이 대상을 **이름으로** 부를 때만. 그래프 탐색은 키 값(`PROD-001`)에서 시작하는데\n27\t사용자가 준 것은 이름(`고정밀 베어링 A형`)이다.\n28\t\n29\t```\n30\tontology_resolve_entity(\"고정밀 베어링 A형\", class_name=\"MfgProduct\")\n31\t→ {\"matches\": [{\"class_name\": \"MfgProduct\",\n32\t                \"properties\": {\"product_id\": \"PROD-001\", ...},\n33\t                \"matched_by\": \"lexical\"}],\n34\t   \"key_columns\": {\"MfgProduct\": [\"product_id\"]}}\n35\t```\n36\t\n37\t`matched_by` 를 보라.\n38\t\n39\t- `lexical` — 이름 문자열이 속성에 들어 있어 찾았다. **카탈로그에서 생성된 클래스는 이\n40\t  경로로만 찾힌다.** 속성명이 컬럼명(`product_name`)이라 `name` 이 없고, 임베딩 텍스트는\n41\t  `name`/`title`/`content` 로만 만들어지므로 벡터 색인에 실릴 내용이 없다.\n42\t- `vector` — 의미 유사도로 찾았다. 문서에서 온 엔티티에 해당한다.\n43\t\n44\t결과가 0건이면 색인이 없는 것인지 정말 없는 것인지 `note` 가 알려 준다. **ID 를 추측해\n45\t넘어가지 마라** — 없는 키로 Cypher 를 돌리면 조용히 0행이 나오고, 그것을 \"데이터가 없다\"로\n46\t잘못 보고하게 된다.\n47\t\n48\t## 1단계: 그래프로 대상을 좁힌다 — `ontology_graph_cypher`\n49\t\n50\t관계·토폴로지·경로가 걸린 질문에만 쓴다. 인스턴스는 `:_Entity` 와 클래스명을 함께 갖는다.\n51\t\n52\t```cypher\n53\tMATCH (p:_Entity:MfgProduct {product_id: $pid})\n54\t      -[:REFERENCES_MFG_PRODUCT]-(r:_Entity:MfgProductRouting)\n55\t      -[:REFERENCES_MFG_PROCESS_STEP]-(s:_Entity:MfgProcessStep)\n56\tRETURN s.step_id AS step_id, s.step_name AS step_name\n57\t```\n58\t\n59\t응답에는 **`_datasource_refs`** 가 붙어 온다. **질의가 언급한 클래스**에서 뽑으므로\n60\t노드를 통째로 RETURN 하든 속성만 RETURN 하든 항상 실린다:\n61\t\n62\t```json\n63\t{\"class\": \"MfgDailyEquipment\", \"datasource\": \"manufacturing\",\n64\t \"schema\": \"manufacturing\", \"table\": \"mfg_daily_equipment\",\n65\t \"via_relationship\": \"REFERENCES_MFG_PROCESS_STEP\", \"join_on\": \"step_id = step_id\"}\n66\t```\n67\t\n68\t이것이 **다음에 갈 곳**이다. `join_on` 이 두 세계를 잇는 키다 — 가상 클래스는 그래프에\n69\t노드가 없어 관계를 따라갈 수 없고, 오직 **키 값**으로만 이어진다.\n70\t\n71\t카탈로그 라벨(`DataSource`·`Table`·`Column`)은 조회할 수 없다. 접속 정보가 거기 있다.\n72\t\n73\t## 2단계: 그 클래스 하나의 스키마 — `ontology_get_datasource_schema`\n74\t\n75\t`_datasource_refs` 가 준 `class` 를 그대로 넘긴다.\n76\t\n77\t```\n78\tontology_get_datasource_schema(\"MfgDailyEquipment\")\n79\t```\n80\t\n81\t받는 것:\n82\t\n83\t- `columns[]` — 각 항목의 **`column`** 이 SQL 에 쓸 이름이다. `property` 는 온톨로지\n84\t  용어이고 SQL 에 넣으면 거부된다.\n85\t- `key_columns` — 조인·식별에 쓸 키.\n86\t- `base_conditions` — 이 클래스의 **모든** 조회에 항상 걸리는 조건. 모집단의 정의다.\n87\t- `behaviors[]` — 빌드 시점에 실데이터로 검증된 질의. 질문을 커버하면 그것을 우선한다.\n88\t\n89\t**다른 클래스의 컬럼은 오지 않는다.** 두 클래스가 필요하면 두 번 부른다. 그래도 전체\n90\t스키마를 받는 것보다 훨씬 싸다.\n91\t\n9",
+        "node": ""
+      },
+      "t": 9.19
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "도구가 로드됐습니다. 온톨로지 지도를 읽겠습니다.",
+        "node": "agent"
+      },
+      "t": 12.97
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01S7WrATwczHzXD3bRVhgSC8",
+        "name": "ontology_graph_schema",
+        "node": "ontology_graph_schema",
+        "args": {},
+        "description": "ontology_graph_schema 도구를 실행합니다"
+      },
+      "t": 12.97
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01S7WrATwczHzXD3bRVhgSC8",
+        "name": "ontology_graph_schema",
+        "content": "{\"result\":\"{\\\"models\\\": [{\\\"schema_id\\\": \\\"c316cf717ef3\\\", \\\"name\\\": \\\"공급망 지식지도\\\", \\\"description\\\": \\\"「기업 공급망 관리 업무 개념 체계」 문서 근거. 1-1 기록 개념은 scm_erp/wms/customs/crm 4개 이기종 시스템 테이블에 바인딩된 가상 클래스, 1-2 판단 개념은 업무 규칙을 담은 개념 클래스. 키 표기 차이(item_id/sku_code/ref_item_code, supplier_id/vendor_code)를 관계로 정합.\\\", \\\"intent\\\": \\\"\\\", \\\"golden_questions\\\": [], \\\"format_version\\\": 1, \\\"published_at\\\": 1787312650.117163}, {\\\"schema_id\\\": \\\"556fd497fb03\\\", \\\"name\\\": \\\"미국 전력망\\\", \\\"description\\\": \\\"미국 전력망 지리 예제\\\", \\\"intent\\\": \\\"변전소·송전선로·정전구역·발전량을 지도와 추이로 본다\\\", \\\"golden_questions\\\": [\\\"과부하 구간이 있는 송전선로는 어디인가?\\\", \\\"주별 정전 피해 가구는 얼마나 되는가?\\\", \\\"발전 유형별 주간 발전량 추이는?\\\"], \\\"format_version\\\": 1, \\\"published_at\\\": 1787180771.1668632}, {\\\"schema_id\\\": \\\"a0edf61cc416\\\", \\\"name\\\": \\\"제조 하이브리드\\\", \\\"description\\\": \\\"legacy.manufacturing 테이블 구조에서 생성\\\", \\\"intent\\\": \\\"\\\", \\\"golden_questions\\\": [], \\\"format_version\\\": 1, \\\"published_at\\\": 1786947759.0137112}], \\\"classes\\\": [{\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"AlternateSourcingOption\\\", \\\"description\\\": \\\"[판단 개념·데이터 없음] 품목의 대체 소싱 후보와 조건 비교. 품목(Item)과 공급사(Supplier)를 대조. R7: Item.alt_supplier_id가 존재하면 대체 공급사가 후보다. 주공급사(primary_supplier_id)와 대체공급사를 리드타임(lead_time_days)·정시납품률(otd_rate)·평가점수(eval_score)·인코텀즈·통화·단가로 비교해 긴급 대체 가능성과 조건 차이를 판정한다. 조인: Item.primary_supplier_id / Item.alt_supplier_id = Supplier.supplier_id.\\\", \\\"binding_kind\\\": \\\"materialized\\\", \\\"property_names\\\": [], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": false, \\\"native_key\\\": [], \\\"behavior_count\\\": 0}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"ClaimTicket\\\", \\\"description\\\": \\\"고객 클레임 티켓. 키 ticket_no. 고객(cust_no)·판매주문(so_no)·품목(sku_code)을 참조하고, 원인 역추적을 위해 발주(ref_po_no)·선적(ref_shipment_no)을 선택적으로 참조. 속성: 카테고리, 심각도, 상태, 근본원인(root_cause), 접수일. 주문→발주→선적→통관 역추적의 출발점.\\\", \\\"binding_kind\\\": \\\"virtual\\\", \\\"property_names\\\": [\\\"티켓번호\\\", \\\"고객번호\\\", \\\"주문번호\\\", \\\"품목코드\\\", \\\"접수일\\\", \\\"카테고리\\\", \\\"심각도\\\", \\\"상태\\\", \\\"근본원인\\\", \\\"참조발주\\\", \\\"참조선적\\\"], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": true, \\\"native_key\\\": [\\\"ticket_no\\\"], \\\"behavior_count\\\": 0, \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\", \\\"schema\\\": \\\"crm_scm\\\", \\\"table\\\": \\\"claim_ticket\\\"}, \\\"key_columns\\\": [\\\"ticket_no\\\"]}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"Contract\\\", \\\"description\\\": \\\"공급 계약. 키 contract_id. 속성: 공급사, 계약유형, 시작·종료일(end_date), 자동갱신(auto_renew), 페널티율(penalty_rate), 단가고정(price_lock), 상태(status: ACTIVE/EXPIRING/EXPIRED), 리스크조항(risk_clause). 발주(PurchaseOrder.contract_id)가 이 계약을 근거로 발생한다.\\\", \\\"binding_kind\\\": \\\"virtual\\\", \\\"property_names\\\": [\\\"계약번호\\\", \\\"공급사ID\\\", \\\"계약유형\\\", \\\"시작일\\\", \\\"종료일\\\", \\\"자동갱신\\\", \\\"페널티율\\\", \\\"단가고정\\\", \\\"상태\\\", \\\"리스크조항\\\"], \\\"property_source\\\": \\\"published_registry\\\", \\\"native\\\": true, \\\"native_key\\\": [\\\"contract_id\\\"], \\\"behavior_count\\\": 0, \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\", \\\"schema\\\": \\\"erp\\\", \\\"table\\\": \\\"doc_contract\\\"}, \\\"key_columns\\\": [\\\"contract_id\\\"]}, {\\\"schema_name\\\": \\\"공급망 지식지도\\\", \\\"class_name\\\": \\\"Customer\\\", \\\"description\\\": \\\"고객사. 키 cust",
+        "node": ""
+      },
+      "t": 13.22
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "온톨로지 지도를 확인했습니다. 클레임 역추적 경로가 명확합니다:\n\n`ClaimTicket`(scm_crm) → `FILED_BY` Customer, `ABOUT_ORDER` SalesOrder, `ABOUT_ITEM` Item, `REFERS_PO` PurchaseOrder, `REFERS_SHIPMENT` Shipment.\n\n먼저 클레임 티켓 자체를 조회해 실제 참조 키들을 확인하겠습니다. ClaimTicket·Customer·SalesOrder는 모두 `scm_crm`에 있으니 스키마를 함께 받습니다.",
+        "node": "agent"
+      },
+      "t": 25.3
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01Uq5LEXNEFGGtYxTwPwR3YB",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "ClaimTicket"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 25.3
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_crm",
+        "table": "claim_ticket"
+      },
+      "t": 25.35
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01Uq5LEXNEFGGtYxTwPwR3YB",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"ClaimTicket\\\", \\\"description\\\": \\\"고객 클레임 티켓. 키 ticket_no. 고객(cust_no)·판매주문(so_no)·품목(sku_code)을 참조하고, 원인 역추적을 위해 발주(ref_po_no)·선적(ref_shipment_no)을 선택적으로 참조. 속성: 카테고리, 심각도, 상태, 근본원인(root_cause), 접수일. 주문→발주→선적→통관 역추적의 출발점.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\", \\\"schema\\\": \\\"crm_scm\\\", \\\"table\\\": \\\"claim_ticket\\\"}, \\\"key_columns\\\": [\\\"ticket_no\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"티켓번호\\\", \\\"column\\\": \\\"ticket_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"고객번호\\\", \\\"column\\\": \\\"cust_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"주문번호\\\", \\\"column\\\": \\\"so_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"품목코드\\\", \\\"column\\\": \\\"sku_code\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"접수일\\\", \\\"column\\\": \\\"opened_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"카테고리\\\", \\\"column\\\": \\\"category\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"심각도\\\", \\\"column\\\": \\\"severity\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"ticket_status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"근본원인\\\", \\\"column\\\": \\\"root_cause\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"참조발주\\\", \\\"column\\\": \\\"ref_po_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"참조선적\\\", \\\"column\\\": \\\"ref_shipment_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 11, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 25.35
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01SdFFJ89jn2vq7VpEpit36o",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "Customer"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 26.04
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01PYMKwQbDmF4TbhPf6D4ute",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "SalesOrder"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 26.06
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_crm",
+        "table": "customer"
+      },
+      "t": 26.11
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01SdFFJ89jn2vq7VpEpit36o",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"Customer\\\", \\\"description\\\": \\\"고객사. 키 cust_no. 속성: 상호, 국가, 세그먼트, 인코텀즈, 결제조건, SLA일수(sla_days). 판매주문·클레임의 주체.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\", \\\"schema\\\": \\\"crm_scm\\\", \\\"table\\\": \\\"customer\\\"}, \\\"key_columns\\\": [\\\"cust_no\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"고객번호\\\", \\\"column\\\": \\\"cust_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상호\\\", \\\"column\\\": \\\"cust_name\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"국가\\\", \\\"column\\\": \\\"country\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"세그먼트\\\", \\\"column\\\": \\\"segment\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"인코텀즈\\\", \\\"column\\\": \\\"incoterms\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"결제조건\\\", \\\"column\\\": \\\"payment_terms\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"SLA일수\\\", \\\"column\\\": \\\"sla_days\\\", \\\"type\\\": \\\"integer\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 7, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 26.11
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_crm",
+        "table": "sales_order"
+      },
+      "t": 26.15
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01PYMKwQbDmF4TbhPf6D4ute",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"SalesOrder\\\", \\\"description\\\": \\\"고객 판매 주문. 키 so_no. 속성: 고객(cust_no), 품목(sku_code=item_id), 주문일, 요청납기(requested_date), 확정납기(confirmed_date), 수량, 상태, 리스크노트. 클레임(claim_ticket.so_no)의 대상.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\", \\\"schema\\\": \\\"crm_scm\\\", \\\"table\\\": \\\"sales_order\\\"}, \\\"key_columns\\\": [\\\"so_no\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"주문번호\\\", \\\"column\\\": \\\"so_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"고객번호\\\", \\\"column\\\": \\\"cust_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"품목코드\\\", \\\"column\\\": \\\"sku_code\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"주문일\\\", \\\"column\\\": \\\"order_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"요청납기\\\", \\\"column\\\": \\\"requested_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"확정납기\\\", \\\"column\\\": \\\"confirmed_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"수량\\\", \\\"column\\\": \\\"qty\\\", \\\"type\\\": \\\"integer\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"so_status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"리스크노트\\\", \\\"column\\\": \\\"risk_note\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 9, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 26.15
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "세 클래스 모두 `scm_crm`이니 한 번의 SQL로 클레임→고객→판매주문을 조인해 조회합니다.",
+        "node": "agent"
+      },
+      "t": 29.74
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01KisU9JrJgnEtFrjNm9C2Xu",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT t.ticket_no, t.cust_no, t.so_no, t.sku_code, t.opened_date, t.category, t.severity, t.ticket_status, t.root_cause, t.ref_po_no, t.ref_shipment_no,\nc.cust_name, c.country, c.segment, c.incoterms, c.payment_terms, c.sla_days,\ns.order_date, s.requested_date, s.confirmed_date, s.qty, s.so_status, s.risk_note\nFROM crm_scm.claim_ticket t\nLEFT JOIN crm_scm.customer c ON t.cust_no = c.cust_no\nLEFT JOIN crm_scm.sales_order s ON t.so_no = s.so_no\nWHERE t.ticket_no = 'TK-2026-0031'"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 32.05
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 1,
+        "datasource": "scm_crm",
+        "table": ""
+      },
+      "t": 32.17
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01KisU9JrJgnEtFrjNm9C2Xu",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"ticket_no\\\", \\\"cust_no\\\", \\\"so_no\\\", \\\"sku_code\\\", \\\"opened_date\\\", \\\"category\\\", \\\"severity\\\", \\\"ticket_status\\\", \\\"root_cause\\\", \\\"ref_po_no\\\", \\\"ref_shipment_no\\\", \\\"cust_name\\\", \\\"country\\\", \\\"segment\\\", \\\"incoterms\\\", \\\"payment_terms\\\", \\\"sla_days\\\", \\\"order_date\\\", \\\"requested_date\\\", \\\"confirmed_date\\\", \\\"qty\\\", \\\"so_status\\\", \\\"risk_note\\\"], \\\"rows\\\": [{\\\"ticket_no\\\": \\\"TK-2026-0031\\\", \\\"cust_no\\\": \\\"CUS-004\\\", \\\"so_no\\\": \\\"SO-2026-0412\\\", \\\"sku_code\\\": \\\"ITM-FG-001\\\", \\\"opened_date\\\": \\\"2026-08-20\\\", \\\"category\\\": \\\"납기문의\\\", \\\"severity\\\": \\\"HIGH\\\", \\\"ticket_status\\\": \\\"OPEN\\\", \\\"root_cause\\\": null, \\\"ref_po_no\\\": \\\"PO-2026-0117\\\", \\\"ref_shipment_no\\\": \\\"SHP-2026-0111\\\", \\\"cust_name\\\": \\\"아틀라스 오토모티브\\\", \\\"country\\\": \\\"Germany\\\", \\\"segment\\\": \\\"티어1 자동차\\\", \\\"incoterms\\\": \\\"DAP\\\", \\\"payment_terms\\\": \\\"NET90\\\", \\\"sla_days\\\": 45, \\\"order_date\\\": \\\"2026-07-22\\\", \\\"requested_date\\\": \\\"2026-08-30\\\", \\\"confirmed_date\\\": \\\"2026-08-30\\\", \\\"qty\\\": 2400, \\\"so_status\\\": \\\"AT_RISK\\\", \\\"risk_note\\\": \\\"전원모듈 HDI PCB(ITM-PCB-004) 입고 지연 — PO-2026-0117 세관 보류\\\"}], \\\"row_count\\\": 1, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT t.ticket_no, t.cust_no, t.so_no, t.sku_code, t.opened_date, t.category, t.severity, t.ticket_status, t.root_cause, t.ref_po_no, t.ref_shipment_no,\\\\nc.cust_name, c.country, c.segment, c.incoterms, c.payment_terms, c.sla_days,\\\\ns.order_date, s.requested_date, s.confirmed_date, s.qty, s.so_status, s.risk_note\\\\nFROM crm_scm.claim_ticket t\\\\nLEFT JOIN crm_scm.customer c ON t.cust_no = c.cust_no\\\\nLEFT JOIN crm_scm.sales_order s ON t.so_no = s.so_no\\\\nWHERE t.ticket_no = 'TK-2026-0031' LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_crm\\\"}}\"}",
+        "node": ""
+      },
+      "t": 32.17
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "클레임의 실제 참조가 확인됐습니다. 고객 **아틀라스 오토모티브(CUS-004)**, 주문 **SO-2026-0412**(완제품 ITM-FG-001, 확정납기 2026-08-30), 참조발주 PO-2026-0117, 참조선적 SHP-2026-0111. 이제 발주·선적·통관 상태를 직접 검증하겠습니다(핸드오프 값 재확인 + 통관 현재 상태 확인). 세 클래스는 서로 다른 데이터소스이니 스키마를 받습니다.",
+        "node": "agent"
+      },
+      "t": 51.57
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_014N5hjehgbzYjhhnf2fcaVM",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "Shipment"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 52.33
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_wms",
+        "table": "shipment"
+      },
+      "t": 52.38
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_014N5hjehgbzYjhhnf2fcaVM",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"Shipment\\\", \\\"description\\\": \\\"국제 선적. 키 shipment_no(통관 decl_header.ref_shipment_no, CRM claim_ticket.ref_shipment_no 로 참조). 발주(ref_po_no=po_id)를 이행한다. 속성: 참조발주, 공급사(vendor_code), 운송수단, 포워더, ETD/ETA/ATD/ATA, 선적상태, 지연일수(delay_days), 지연사유(delay_reason), B/L번호.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_wms\\\", \\\"schema\\\": \\\"wms\\\", \\\"table\\\": \\\"shipment\\\"}, \\\"key_columns\\\": [\\\"shipment_no\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"선적번호\\\", \\\"column\\\": \\\"shipment_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"참조발주\\\", \\\"column\\\": \\\"ref_po_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"공급사코드\\\", \\\"column\\\": \\\"vendor_code\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"운송수단\\\", \\\"column\\\": \\\"transport_mode\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"포워더\\\", \\\"column\\\": \\\"forwarder\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"ETD\\\", \\\"column\\\": \\\"etd\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"ETA\\\", \\\"column\\\": \\\"eta\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"ATD\\\", \\\"column\\\": \\\"atd\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"ATA\\\", \\\"column\\\": \\\"ata\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"선적상태\\\", \\\"column\\\": \\\"ship_status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"지연일수\\\", \\\"column\\\": \\\"delay_days\\\", \\\"type\\\": \\\"integer\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"지연사유\\\", \\\"column\\\": \\\"delay_reason\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"BL번호\\\", \\\"column\\\": \\\"bl_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 13, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 52.38
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01VDhZ6hrie2Fmp7gv6HTF3S",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "CustomsDeclaration"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 52.86
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_015XejNY6a17UAnMCB3X4w6R",
+        "name": "ontology_get_datasource_schema",
+        "node": "ontology_get_datasource_schema",
+        "args": {
+          "class_name": "PurchaseOrder"
+        },
+        "description": "ontology_get_datasource_schema 도구를 실행합니다"
+      },
+      "t": 52.87
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_customs",
+        "table": "decl_header"
+      },
+      "t": 52.89
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01VDhZ6hrie2Fmp7gv6HTF3S",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"CustomsDeclaration\\\", \\\"description\\\": \\\"수입 통관 신고. 키 decl_id. 선적(ref_shipment_no=shipment_no)과 품목(ref_item_code=item_id)을 참조. 속성: 방향, 신고품목분류(declared_hs_code), 원산지, FTA적용, 원산지증명 요구·첨부(coo_required/attached), 송장가액, 관세율, 상태(status: CLEARED/FILED/DRAFT/HOLD/REJECTED), 보류사유(hold_reason), 신고일. 신고 HS코드와 품목 마스터 hs_code 의 정합이 판단 대상.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_customs\\\", \\\"schema\\\": \\\"customs\\\", \\\"table\\\": \\\"decl_header\\\"}, \\\"key_columns\\\": [\\\"decl_id\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"신고번호\\\", \\\"column\\\": \\\"decl_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"참조선적\\\", \\\"column\\\": \\\"ref_shipment_no\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"방향\\\", \\\"column\\\": \\\"direction\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"참조품목\\\", \\\"column\\\": \\\"ref_item_code\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"신고HS코드\\\", \\\"column\\\": \\\"declared_hs_code\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"원산지\\\", \\\"column\\\": \\\"origin_country\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"FTA적용\\\", \\\"column\\\": \\\"fta_applied\\\", \\\"type\\\": \\\"boolean\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"원산지증명요구\\\", \\\"column\\\": \\\"coo_required\\\", \\\"type\\\": \\\"boolean\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"원산지증명첨부\\\", \\\"column\\\": \\\"coo_attached\\\", \\\"type\\\": \\\"boolean\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"송장가액USD\\\", \\\"column\\\": \\\"invoice_value_usd\\\", \\\"type\\\": \\\"float\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"관세율\\\", \\\"column\\\": \\\"duty_rate\\\", \\\"type\\\": \\\"float\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"보류사유\\\", \\\"column\\\": \\\"hold_reason\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"신고일\\\", \\\"column\\\": \\\"filed_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 14, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 52.89
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_get_datasource_schema",
+        "datasource": "scm_erp",
+        "table": "doc_purchase_order"
+      },
+      "t": 52.93
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_015XejNY6a17UAnMCB3X4w6R",
+        "name": "ontology_get_datasource_schema",
+        "content": "{\"result\":\"{\\\"class_name\\\": \\\"PurchaseOrder\\\", \\\"description\\\": \\\"구매 발주 헤더. 키 po_id(WMS shipment.ref_po_no, CRM claim_ticket.ref_po_no 로 참조). 속성: 공급사, 계약(contract_id), 발주일, 납기약속일(promised_date), 상태(status: OPEN/CONFIRMED/DELAYED/RECEIVED 등), 발주금액(total_amount_usd), 우선순위(priority), 구매담당.\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\", \\\"schema\\\": \\\"erp\\\", \\\"table\\\": \\\"doc_purchase_order\\\"}, \\\"key_columns\\\": [\\\"po_id\\\"], \\\"base_conditions\\\": [], \\\"columns\\\": [{\\\"property\\\": \\\"발주번호\\\", \\\"column\\\": \\\"po_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"공급사ID\\\", \\\"column\\\": \\\"supplier_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"계약번호\\\", \\\"column\\\": \\\"contract_id\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"발주일\\\", \\\"column\\\": \\\"order_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"납기약속일\\\", \\\"column\\\": \\\"promised_date\\\", \\\"type\\\": \\\"date\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"상태\\\", \\\"column\\\": \\\"status\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"발주금액USD\\\", \\\"column\\\": \\\"total_amount_usd\\\", \\\"type\\\": \\\"float\\\", \\\"description\\\": \\\"\\\"}, {\\\"property\\\": \\\"우선순위\\\", \\\"column\\\": \\\"priority\\\", \\\"type\\\": \\\"string\\\", \\\"description\\\": \\\"\\\"}], \\\"column_count\\\": 8, \\\"behaviors\\\": [], \\\"usage\\\": \\\"SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요.\\\"}\"}",
+        "node": ""
+      },
+      "t": 52.93
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "이제 발주(scm_erp)·선적(scm_wms)·통관신고(scm_customs)를 각각 조회합니다.",
+        "node": "agent"
+      },
+      "t": 56.62
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01NoCqEhsKWYEEHNM3RNZGPv",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT po_id, supplier_id, contract_id, order_date, promised_date, status, total_amount_usd, priority FROM erp.doc_purchase_order WHERE po_id = 'PO-2026-0117'"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 57.37
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 1,
+        "datasource": "scm_erp",
+        "table": ""
+      },
+      "t": 57.42
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01NoCqEhsKWYEEHNM3RNZGPv",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"po_id\\\", \\\"supplier_id\\\", \\\"contract_id\\\", \\\"order_date\\\", \\\"promised_date\\\", \\\"status\\\", \\\"total_amount_usd\\\", \\\"priority\\\"], \\\"rows\\\": [{\\\"po_id\\\": \\\"PO-2026-0117\\\", \\\"supplier_id\\\": \\\"SUP-CN-003\\\", \\\"contract_id\\\": \\\"CT-2025-011\\\", \\\"order_date\\\": \\\"2026-07-24\\\", \\\"promised_date\\\": \\\"2026-08-17\\\", \\\"status\\\": \\\"DELAYED\\\", \\\"total_amount_usd\\\": \\\"81307.20\\\", \\\"priority\\\": \\\"HIGH\\\"}], \\\"row_count\\\": 1, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT po_id, supplier_id, contract_id, order_date, promised_date, status, total_amount_usd, priority FROM erp.doc_purchase_order WHERE po_id = 'PO-2026-0117' LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_erp\\\"}}\"}",
+        "node": ""
+      },
+      "t": 57.42
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01CiLmfsqa2FSUpQB15pSFfb",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT shipment_no, ref_po_no, vendor_code, transport_mode, forwarder, etd, eta, atd, ata, ship_status, delay_days, delay_reason, bl_no FROM wms.shipment WHERE shipment_no = 'SHP-2026-0111'"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 58.88
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 1,
+        "datasource": "scm_wms",
+        "table": ""
+      },
+      "t": 59.02
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01CiLmfsqa2FSUpQB15pSFfb",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"shipment_no\\\", \\\"ref_po_no\\\", \\\"vendor_code\\\", \\\"transport_mode\\\", \\\"forwarder\\\", \\\"etd\\\", \\\"eta\\\", \\\"atd\\\", \\\"ata\\\", \\\"ship_status\\\", \\\"delay_days\\\", \\\"delay_reason\\\", \\\"bl_no\\\"], \\\"rows\\\": [{\\\"shipment_no\\\": \\\"SHP-2026-0111\\\", \\\"ref_po_no\\\": \\\"PO-2026-0117\\\", \\\"vendor_code\\\": \\\"SUP-CN-003\\\", \\\"transport_mode\\\": \\\"SEA\\\", \\\"forwarder\\\": \\\"KMTC\\\", \\\"etd\\\": \\\"2026-08-04\\\", \\\"eta\\\": \\\"2026-08-17\\\", \\\"atd\\\": \\\"2026-08-08\\\", \\\"ata\\\": null, \\\"ship_status\\\": \\\"CUSTOMS_HOLD\\\", \\\"delay_days\\\": 9, \\\"delay_reason\\\": \\\"부산세관 서류심사 보류(원산지증명 미첨부)\\\", \\\"bl_no\\\": \\\"SBL778231\\\"}], \\\"row_count\\\": 1, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT shipment_no, ref_po_no, vendor_code, transport_mode, forwarder, etd, eta, atd, ata, ship_status, delay_days, delay_reason, bl_no FROM wms.shipment WHERE shipment_no = 'SHP-2026-0111' LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_wms\\\"}}\"}",
+        "node": ""
+      },
+      "t": 59.02
+    },
+    {
+      "event": "tool_start",
+      "data": {
+        "tool_call_id": "toolu_01VnL2GJS1g2y4LFyN43khFo",
+        "name": "ontology_query_datasource_sql",
+        "node": "ontology_query_datasource_sql",
+        "args": {
+          "sql": "SELECT decl_id, ref_shipment_no, direction, ref_item_code, declared_hs_code, origin_country, fta_applied, coo_required, coo_attached, invoice_value_usd, duty_rate, status, hold_reason, filed_date FROM customs.decl_header WHERE ref_shipment_no = 'SHP-2026-0111'"
+        },
+        "description": "ontology_query_datasource_sql 도구를 실행합니다"
+      },
+      "t": 60.18
+    },
+    {
+      "event": "datasource_update",
+      "data": {
+        "tool": "ontology_query_datasource_sql",
+        "row_count": 3,
+        "datasource": "scm_customs",
+        "table": ""
+      },
+      "t": 60.27
+    },
+    {
+      "event": "tool_result",
+      "data": {
+        "tool_call_id": "toolu_01VnL2GJS1g2y4LFyN43khFo",
+        "name": "ontology_query_datasource_sql",
+        "content": "{\"result\":\"{\\\"status\\\": \\\"ok\\\", \\\"columns\\\": [\\\"decl_id\\\", \\\"ref_shipment_no\\\", \\\"direction\\\", \\\"ref_item_code\\\", \\\"declared_hs_code\\\", \\\"origin_country\\\", \\\"fta_applied\\\", \\\"coo_required\\\", \\\"coo_attached\\\", \\\"invoice_value_usd\\\", \\\"duty_rate\\\", \\\"status\\\", \\\"hold_reason\\\", \\\"filed_date\\\"], \\\"rows\\\": [{\\\"decl_id\\\": \\\"DCL-2026-00114\\\", \\\"ref_shipment_no\\\": \\\"SHP-2026-0111\\\", \\\"direction\\\": \\\"IMPORT\\\", \\\"ref_item_code\\\": \\\"ITM-PCB-003\\\", \\\"declared_hs_code\\\": \\\"8534.00\\\", \\\"origin_country\\\": \\\"China\\\", \\\"fta_applied\\\": 1, \\\"coo_required\\\": 1, \\\"coo_attached\\\": 0, \\\"invoice_value_usd\\\": \\\"27952.80\\\", \\\"duty_rate\\\": \\\"8.00\\\", \\\"status\\\": \\\"HOLD\\\", \\\"hold_reason\\\": \\\"한-중 FTA 원산지증명서(C/O) 미첨부 — 협정세율 적용 보류\\\", \\\"filed_date\\\": \\\"2026-08-16\\\"}, {\\\"decl_id\\\": \\\"DCL-2026-00115\\\", \\\"ref_shipment_no\\\": \\\"SHP-2026-0111\\\", \\\"direction\\\": \\\"IMPORT\\\", \\\"ref_item_code\\\": \\\"ITM-PCB-001\\\", \\\"declared_hs_code\\\": \\\"8534.00\\\", \\\"origin_country\\\": \\\"China\\\", \\\"fta_applied\\\": 1, \\\"coo_required\\\": 1, \\\"coo_attached\\\": 0, \\\"invoice_value_usd\\\": \\\"18807.60\\\", \\\"duty_rate\\\": \\\"8.00\\\", \\\"status\\\": \\\"HOLD\\\", \\\"hold_reason\\\": \\\"한-중 FTA 원산지증명서(C/O) 미첨부 — 협정세율 적용 보류\\\", \\\"filed_date\\\": \\\"2026-08-16\\\"}, {\\\"decl_id\\\": \\\"DCL-2026-00116\\\", \\\"ref_shipment_no\\\": \\\"SHP-2026-0111\\\", \\\"direction\\\": \\\"IMPORT\\\", \\\"ref_item_code\\\": \\\"ITM-PCB-004\\\", \\\"declared_hs_code\\\": \\\"8534.00\\\", \\\"origin_country\\\": \\\"China\\\", \\\"fta_applied\\\": 1, \\\"coo_required\\\": 1, \\\"coo_attached\\\": 0, \\\"invoice_value_usd\\\": \\\"34546.80\\\", \\\"duty_rate\\\": \\\"8.00\\\", \\\"status\\\": \\\"HOLD\\\", \\\"hold_reason\\\": \\\"한-중 FTA 원산지증명서(C/O) 미첨부 — 협정세율 적용 보류\\\", \\\"filed_date\\\": \\\"2026-08-16\\\"}], \\\"row_count\\\": 3, \\\"truncated_for_agent\\\": false, \\\"truncated\\\": false, \\\"sql\\\": \\\"SELECT decl_id, ref_shipment_no, direction, ref_item_code, declared_hs_code, origin_country, fta_applied, coo_required, coo_attached, invoice_value_usd, duty_rate, status, hold_reason, filed_date FROM customs.decl_header WHERE ref_shipment_no = 'SHP-2026-0111' LIMIT 500\\\", \\\"source\\\": {\\\"datasource\\\": \\\"scm_customs\\\"}}\"}",
+        "node": ""
+      },
+      "t": 60.27
+    },
+    {
+      "event": "token",
+      "data": {
+        "text": "모든 사실이 검증됐습니다. 통관 신고 3건이 모두 **HOLD**(한-중 FTA 원산지증명서 미첨부)이며, 고객 완제품에 들어가는 HDI PCB(ITM-PCB-004)는 신고 DCL-2026-00116에 해당함을 확인했습니다. 역추적이 완결됐으니 정리하고 회신 초안을 작성합니다.\n\n---\n\n## 🔎 클레임 TK-2026-0031 역추적 결과 (내부용)\n\n**클레임** `scm_crm.claim_ticket` 1행 — 접수 2026-08-20, 카테고리 **납기문의**, 심각도 **HIGH**, 상태 OPEN\n\n```\nClaimTicket(TK-2026-0031)\n  └ FILED_BY   → Customer  CUS-004  아틀라스 오토모티브 (독일, 티어1 자동차, DAP/NET90, SLA 45일)\n  └ ABOUT_ORDER→ SalesOrder SO-2026-0412  완제품 ITM-FG-001 · 2,400EA · 확정납기 2026-08-30 · 상태 AT_RISK\n  └ REFERS_PO  → PurchaseOrder PO-2026-0117  (원자재 HDI PCB 조달) · 상태 DELAYED\n  └ REFERS_SHIPMENT → Shipment SHP-2026-0111 · CUSTOMS_HOLD · 지연 9일\n```\n\n| 단계 | 근거 (테이블·행) | 핵심 사실 |\n|---|---|---|\n| 고객 주문 | `scm_crm.sales_order` 1행 | SO-2026-0412, 확정납기 **2026-08-30**, 상태 **AT_RISK**, 리스크노트: \"HDI PCB(ITM-PCB-004) 입고 지연 — PO-2026-0117 세관 보류\" |\n| 발주 | `scm_erp.doc_purchase_order` 1행 | PO-2026-0117, 공급사 SUP-CN-003, 납기약속 2026-08-17, **DELAYED**, $81,307.20, 우선순위 HIGH |\n| 선적 | `scm_wms.shipment` 1행 | SHP-2026-0111, 해상/KMTC, ETD 8/4→ATD 8/8, ETA 8/17, **ATA 미도착**, **CUSTOMS_HOLD**, 지연 **9일**, 사유 \"부산세관 서류심사 보류(원산지증명 미첨부)\" |\n| 통관 | `scm_customs.decl_header` **3행** | DCL-2026-00114/115/116(ITM-PCB-003/001/004) 모두 **HOLD** — \"한-중 FTA 원산지증명서(C/O) 미첨부 → 협정세율 보류\". 고객 완제품용 **ITM-PCB-004는 DCL-2026-00116** |\n\n**근본 원인 (판단개념 `DeliveryRisk`·`CustomsHoldReason` R3 적용):** 완제품 ITM-FG-001의 핵심 부품인 HDI PCB가 중국发 해상 선적 후 **부산세관에서 한-중 FTA 원산지증명서(C/O) 미첨부로 통관 보류**됨. 운송이 아니라 **통관 서류 미비**가 원인이며, C/O 확보·제출로 해소 가능한 성격. 오늘(2026-08-21) 기준 아직 실입고(ATA) 없음 → 고객 확정납기 8/30 준수가 위태로운 상태.\n\n---\n\n## ✉️ 고객 회신 초안\n\n> **수신**: 아틀라스 오토모티브 (Atlas Automotive) 구매팀\n> **건**: 주문 SO-2026-0412 (HDI PCB 적용 전원모듈 완제품, 2,400EA) 납기 문의 회신 — 티켓 TK-2026-0031\n\n안녕하세요, 아틀라스 오토모티브 담당자님.\n\n주문 **SO-2026-0412**의 납기 문의(접수번호 TK-2026-0031)에 답변드립니다. 먼저 배송 관련 불편을 끼쳐드린 점 양해 부탁드립니다.\n\n**■ 현재 상황 및 원인**\n해당 완제품의 핵심 부품인 HDI PCB가 해외 공급처로부터 해상 운송되어 국내에 도착했으나, **수입 통관 과정에서 원산지증명서(한-중 FTA C/O) 서류 보완 사유로 통관이 보류**되어 있습니다. 부품 자체의 품질·수량 문제나 운송 지연이 아니라, **관세 협정 적용을 위한 서류 확인 절차**에서 지체가 발생한 것으로, 현재 세관 심사가 진행 중입니다.\n\n**■ 진행 중인 조치**\n- 공급처에 **원산지증명서(C/O) 긴급 발급·송부를 요청**하여 세관에 즉시 보완 제출할 수 있도록 진행하고 있습니다.\n- 통관 대행사와 함께 서류 보완 후 **통관 신속 재개** 협의를 병행하고 있으며, 부품 입고 즉시 생산·출하에 착수할 수 있도록 내부 라인을 대기시켜 두었습니다.\n\n**■ 예상 납기 영향**\n- 당초 확정 납기는 **2026-08-30**이었습니다.\n- 현재 부품이 통관 보류 상태로, **확정 납기 준수가 어려울 것으로 예상**됩니다. 통관 해소 시점에 따라 **수일에서 최대 1주가량 지연**될 가능성이 있습니다.\n- 서류 보완이 완료되면 통관은 통상 수 영업일 내 재개되며, **정확한 재확정 납기는 세관 통관 완료 시점 확인 후 24시간 내 별도 안내**드리겠습니다.\n\n**■ 대안 제안**\n1. **분할 납품**: 사내 가용 재고 및 우선 생산분으로 일부 수량을 **선(先)출하**하고, 잔여분을 통관 해소 후 순차 납품하는 방안.\n2. **대체 소싱 병행 검토**: 동일 규격 부품의 대체 공급 경로를 함께 점검하여, 통관 지연이 길어질 경우의 백업 라인을 확보.\n3. **긴급 통관·특송 우선 처리**: 서류 보완 후 통관 우선순위 상향 및 입고 후 특송 출하로 지연 폭 최소화.\n\n귀사 생산 일정에 미치는 영향이 크실 것으로 이해하며, 위 대안 중 선호하시는 방향을 알려주시면 즉시 반영하겠습니다. 통관 진행 상황은 매일 업데이트하여 공유드리겠습니다.\n\n감사합니다.\n[공급사 고객지원팀 드림]\n\n---\n\n**참고(내부)**: 위 회신은 고객 대면 문서라 내부 공급사명·발주금액·타 품목 통관건은 의도적으로 제외했습니다. 계약 CT-2025-011의 페널티 조항(지연 7일 초과)은 **당사↔공급사 간** 사안이므로 고객 회신에 포함하지 않았습니다. \"수일~1주 지연\"은 데이터상 확인된 지연일수 9일·ATA 미도착·통관 HOLD 상태에 근거한 **추정**이며, 실제 재확정 납기는 통관 완료 시점에 확정해야 합니다(생산 리드타임은 데이터에 없어 단정하지 않았습니다).",
+        "node": "agent"
+      },
+      "t": 132.01
+    },
+    {
+      "event": "done",
+      "data": {
+        "message": "완료!",
+        "files": [],
+        "text": "조사를 시작하겠습니다. 먼저 워크플로우 참조 문서를 읽고, 필요한 MCP 도구 스키마를 로드하겠습니다.도구가 로드됐습니다. 온톨로지 지도를 읽겠습니다.온톨로지 지도를 확인했습니다. 클레임 역추적 경로가 명확합니다:\n\n`ClaimTicket`(scm_crm) → `FILED_BY` Customer, `ABOUT_ORDER` SalesOrder, `ABOUT_ITEM` Item, `REFERS_PO` PurchaseOrder, `REFERS_SHIPMENT` Shipment.\n\n먼저 클레임 티켓 자체를 조회해 실제 참조 키들을 확인하겠습니다. ClaimTicket·Customer·SalesOrder는 모두 `scm_crm`에 있으니 스키마를 함께 받습니다.세 클래스 모두 `scm_crm`이니 한 번의 SQL로 클레임→고객→판매주문을 조인해 조회합니다.클레임의 실제 참조가 확인됐습니다. 고객 **아틀라스 오토모티브(CUS-004)**, 주문 **SO-2026-0412**(완제품 ITM-FG-001, 확정납기 2026-08-30), 참조발주 PO-2026-0117, 참조선적 SHP-2026-0111. 이제 발주·선적·통관 상태를 직접 검증하겠습니다(핸드오프 값 재확인 + 통관 현재 상태 확인). 세 클래스는 서로 다른 데이터소스이니 스키마를 받습니다.이제 발주(scm_erp)·선적(scm_wms)·통관신고(scm_customs)를 각각 조회합니다.모든 사실이 검증됐습니다. 통관 신고 3건이 모두 **HOLD**(한-중 FTA 원산지증명서 미첨부)이며, 고객 완제품에 들어가는 HDI PCB(ITM-PCB-004)는 신고 DCL-2026-00116에 해당함을 확인했습니다. 역추적이 완결됐으니 정리하고 회신 초안을 작성합니다.\n\n---\n\n## 🔎 클레임 TK-2026-0031 역추적 결과 (내부용)\n\n**클레임** `scm_crm.claim_ticket` 1행 — 접수 2026-08-20, 카테고리 **납기문의**, 심각도 **HIGH**, 상태 OPEN\n\n```\nClaimTicket(TK-2026-0031)\n  └ FILED_BY   → Customer  CUS-004  아틀라스 오토모티브 (독일, 티어1 자동차, DAP/NET90, SLA 45일)\n  └ ABOUT_ORDER→ SalesOrder SO-2026-0412  완제품 ITM-FG-001 · 2,400EA · 확정납기 2026-08-30 · 상태 AT_RISK\n  └ REFERS_PO  → PurchaseOrder PO-2026-0117  (원자재 HDI PCB 조달) · 상태 DELAYED\n  └ REFERS_SHIPMENT → Shipment SHP-2026-0111 · CUSTOMS_HOLD · 지연 9일\n```\n\n| 단계 | 근거 (테이블·행) | 핵심 사실 |\n|---|---|---|\n| 고객 주문 | `scm_crm.sales_order` 1행 | SO-2026-0412, 확정납기 **2026-08-30**, 상태 **AT_RISK**, 리스크노트: \"HDI PCB(ITM-PCB-004) 입고 지연 — PO-2026-0117 세관 보류\" |\n| 발주 | `scm_erp.doc_purchase_order` 1행 | PO-2026-0117, 공급사 SUP-CN-003, 납기약속 2026-08-17, **DELAYED**, $81,307.20, 우선순위 HIGH |\n| 선적 | `scm_wms.shipment` 1행 | SHP-2026-0111, 해상/KMTC, ETD 8/4→ATD 8/8, ETA 8/17, **ATA 미도착**, **CUSTOMS_HOLD**, 지연 **9일**, 사유 \"부산세관 서류심사 보류(원산지증명 미첨부)\" |\n| 통관 | `scm_customs.decl_header` **3행** | DCL-2026-00114/115/116(ITM-PCB-003/001/004) 모두 **HOLD** — \"한-중 FTA 원산지증명서(C/O) 미첨부 → 협정세율 보류\". 고객 완제품용 **ITM-PCB-004는 DCL-2026-00116** |\n\n**근본 원인 (판단개념 `DeliveryRisk`·`CustomsHoldReason` R3 적용):** 완제품 ITM-FG-001의 핵심 부품인 HDI PCB가 중국发 해상 선적 후 **부산세관에서 한-중 FTA 원산지증명서(C/O) 미첨부로 통관 보류**됨. 운송이 아니라 **통관 서류 미비**가 원인이며, C/O 확보·제출로 해소 가능한 성격. 오늘(2026-08-21) 기준 아직 실입고(ATA) 없음 → 고객 확정납기 8/30 준수가 위태로운 상태.\n\n---\n\n## ✉️ 고객 회신 초안\n\n> **수신**: 아틀라스 오토모티브 (Atlas Automotive) 구매팀\n> **건**: 주문 SO-2026-0412 (HDI PCB 적용 전원모듈 완제품, 2,400EA) 납기 문의 회신 — 티켓 TK-2026-0031\n\n안녕하세요, 아틀라스 오토모티브 담당자님.\n\n주문 **SO-2026-0412**의 납기 문의(접수번호 TK-2026-0031)에 답변드립니다. 먼저 배송 관련 불편을 끼쳐드린 점 양해 부탁드립니다.\n\n**■ 현재 상황 및 원인**\n해당 완제품의 핵심 부품인 HDI PCB가 해외 공급처로부터 해상 운송되어 국내에 도착했으나, **수입 통관 과정에서 원산지증명서(한-중 FTA C/O) 서류 보완 사유로 통관이 보류**되어 있습니다. 부품 자체의 품질·수량 문제나 운송 지연이 아니라, **관세 협정 적용을 위한 서류 확인 절차**에서 지체가 발생한 것으로, 현재 세관 심사가 진행 중입니다.\n\n**■ 진행 중인 조치**\n- 공급처에 **원산지증명서(C/O) 긴급 발급·송부를 요청**하여 세관에 즉시 보완 제출할 수 있도록 진행하고 있습니다.\n- 통관 대행사와 함께 서류 보완 후 **통관 신속 재개** 협의를 병행하고 있으며, 부품 입고 즉시 생산·출하에 착수할 수 있도록 내부 라인을 대기시켜 두었습니다.\n\n**■ 예상 납기 영향**\n- 당초 확정 납기는 **2026-08-30**이었습니다.\n- 현재 부품이 통관 보류 상태로, **확정 납기 준수가 어려울 것으로 예상**됩니다. 통관 해소 시점에 따라 **수일에서 최대 1주가량 지연**될 가능성이 있습니다.\n- 서류 보완이 완료되면 통관은 통상 수 영업일 내 재개되며, **정확한 재확정 납기는 세관 통관 완료 시점 확인 후 24시간 내 별도 안내**드리겠습니다.\n\n**■ 대안 제안**\n1. **분할 납품**: 사내 가용 재고 및 우선 생산분으로 일부 수량을 **선(先)출하**하고, 잔여분을 통관 해소 후 순차 납품하는 방안.\n2. **대체 소싱 병행 검토**: 동일 규격 부품의 대체 공급 경로를 함께 점검하여, 통관 지연이 길어질 경우의 백업 라인을 확보.\n3. **긴급 통관·특송 우선 처리**: 서류 보완 후 통관 우선순위 상향 및 입고 후 특송 출하로 지연 폭 최소화.\n\n귀사 생산 일정에 미치는 영향이 크실 것으로 이해하며, 위 대안 중 선호하시는 방향을 알려주시면 즉시 반영하겠습니다. 통관 진행 상황은 매일 업데이트하여 공유드리겠습니다.\n\n감사합니다.\n[공급사 고객지원팀 드림]\n\n---\n\n**참고(내부)**: 위 회신은 고객 대면 문서라 내부 공급사명·발주금액·타 품목 통관건은 의도적으로 제외했습니다. 계약 CT-2025-011의 페널티 조항(지연 7일 초과)은 **당사↔공급사 간** 사안이므로 고객 회신에 포함하지 않았습니다. \"수일~1주 지연\"은 데이터상 확인된 지연일수 9일·ATA 미도착·통관 HOLD 상태에 근거한 **추정**이며, 실제 재확정 납기는 통관 완료 시점에 확정해야 합니다(생산 리드타임은 데이터에 없어 단정하지 않았습니다).",
+        "build_report": null
+      },
+      "t": 132.47
+    }
+  ],
+  "answer": "조사를 시작하겠습니다. 먼저 워크플로우 참조 문서를 읽고, 필요한 MCP 도구 스키마를 로드하겠습니다.도구가 로드됐습니다. 온톨로지 지도를 읽겠습니다.온톨로지 지도를 확인했습니다. 클레임 역추적 경로가 명확합니다:\n\n`ClaimTicket`(scm_crm) → `FILED_BY` Customer, `ABOUT_ORDER` SalesOrder, `ABOUT_ITEM` Item, `REFERS_PO` PurchaseOrder, `REFERS_SHIPMENT` Shipment.\n\n먼저 클레임 티켓 자체를 조회해 실제 참조 키들을 확인하겠습니다. ClaimTicket·Customer·SalesOrder는 모두 `scm_crm`에 있으니 스키마를 함께 받습니다.세 클래스 모두 `scm_crm`이니 한 번의 SQL로 클레임→고객→판매주문을 조인해 조회합니다.클레임의 실제 참조가 확인됐습니다. 고객 **아틀라스 오토모티브(CUS-004)**, 주문 **SO-2026-0412**(완제품 ITM-FG-001, 확정납기 2026-08-30), 참조발주 PO-2026-0117, 참조선적 SHP-2026-0111. 이제 발주·선적·통관 상태를 직접 검증하겠습니다(핸드오프 값 재확인 + 통관 현재 상태 확인). 세 클래스는 서로 다른 데이터소스이니 스키마를 받습니다.이제 발주(scm_erp)·선적(scm_wms)·통관신고(scm_customs)를 각각 조회합니다.모든 사실이 검증됐습니다. 통관 신고 3건이 모두 **HOLD**(한-중 FTA 원산지증명서 미첨부)이며, 고객 완제품에 들어가는 HDI PCB(ITM-PCB-004)는 신고 DCL-2026-00116에 해당함을 확인했습니다. 역추적이 완결됐으니 정리하고 회신 초안을 작성합니다.\n\n---\n\n## 🔎 클레임 TK-2026-0031 역추적 결과 (내부용)\n\n**클레임** `scm_crm.claim_ticket` 1행 — 접수 2026-08-20, 카테고리 **납기문의**, 심각도 **HIGH**, 상태 OPEN\n\n```\nClaimTicket(TK-2026-0031)\n  └ FILED_BY   → Customer  CUS-004  아틀라스 오토모티브 (독일, 티어1 자동차, DAP/NET90, SLA 45일)\n  └ ABOUT_ORDER→ SalesOrder SO-2026-0412  완제품 ITM-FG-001 · 2,400EA · 확정납기 2026-08-30 · 상태 AT_RISK\n  └ REFERS_PO  → PurchaseOrder PO-2026-0117  (원자재 HDI PCB 조달) · 상태 DELAYED\n  └ REFERS_SHIPMENT → Shipment SHP-2026-0111 · CUSTOMS_HOLD · 지연 9일\n```\n\n| 단계 | 근거 (테이블·행) | 핵심 사실 |\n|---|---|---|\n| 고객 주문 | `scm_crm.sales_order` 1행 | SO-2026-0412, 확정납기 **2026-08-30**, 상태 **AT_RISK**, 리스크노트: \"HDI PCB(ITM-PCB-004) 입고 지연 — PO-2026-0117 세관 보류\" |\n| 발주 | `scm_erp.doc_purchase_order` 1행 | PO-2026-0117, 공급사 SUP-CN-003, 납기약속 2026-08-17, **DELAYED**, $81,307.20, 우선순위 HIGH |\n| 선적 | `scm_wms.shipment` 1행 | SHP-2026-0111, 해상/KMTC, ETD 8/4→ATD 8/8, ETA 8/17, **ATA 미도착**, **CUSTOMS_HOLD**, 지연 **9일**, 사유 \"부산세관 서류심사 보류(원산지증명 미첨부)\" |\n| 통관 | `scm_customs.decl_header` **3행** | DCL-2026-00114/115/116(ITM-PCB-003/001/004) 모두 **HOLD** — \"한-중 FTA 원산지증명서(C/O) 미첨부 → 협정세율 보류\". 고객 완제품용 **ITM-PCB-004는 DCL-2026-00116** |\n\n**근본 원인 (판단개념 `DeliveryRisk`·`CustomsHoldReason` R3 적용):** 완제품 ITM-FG-001의 핵심 부품인 HDI PCB가 중국发 해상 선적 후 **부산세관에서 한-중 FTA 원산지증명서(C/O) 미첨부로 통관 보류**됨. 운송이 아니라 **통관 서류 미비**가 원인이며, C/O 확보·제출로 해소 가능한 성격. 오늘(2026-08-21) 기준 아직 실입고(ATA) 없음 → 고객 확정납기 8/30 준수가 위태로운 상태.\n\n---\n\n## ✉️ 고객 회신 초안\n\n> **수신**: 아틀라스 오토모티브 (Atlas Automotive) 구매팀\n> **건**: 주문 SO-2026-0412 (HDI PCB 적용 전원모듈 완제품, 2,400EA) 납기 문의 회신 — 티켓 TK-2026-0031\n\n안녕하세요, 아틀라스 오토모티브 담당자님.\n\n주문 **SO-2026-0412**의 납기 문의(접수번호 TK-2026-0031)에 답변드립니다. 먼저 배송 관련 불편을 끼쳐드린 점 양해 부탁드립니다.\n\n**■ 현재 상황 및 원인**\n해당 완제품의 핵심 부품인 HDI PCB가 해외 공급처로부터 해상 운송되어 국내에 도착했으나, **수입 통관 과정에서 원산지증명서(한-중 FTA C/O) 서류 보완 사유로 통관이 보류**되어 있습니다. 부품 자체의 품질·수량 문제나 운송 지연이 아니라, **관세 협정 적용을 위한 서류 확인 절차**에서 지체가 발생한 것으로, 현재 세관 심사가 진행 중입니다.\n\n**■ 진행 중인 조치**\n- 공급처에 **원산지증명서(C/O) 긴급 발급·송부를 요청**하여 세관에 즉시 보완 제출할 수 있도록 진행하고 있습니다.\n- 통관 대행사와 함께 서류 보완 후 **통관 신속 재개** 협의를 병행하고 있으며, 부품 입고 즉시 생산·출하에 착수할 수 있도록 내부 라인을 대기시켜 두었습니다.\n\n**■ 예상 납기 영향**\n- 당초 확정 납기는 **2026-08-30**이었습니다.\n- 현재 부품이 통관 보류 상태로, **확정 납기 준수가 어려울 것으로 예상**됩니다. 통관 해소 시점에 따라 **수일에서 최대 1주가량 지연**될 가능성이 있습니다.\n- 서류 보완이 완료되면 통관은 통상 수 영업일 내 재개되며, **정확한 재확정 납기는 세관 통관 완료 시점 확인 후 24시간 내 별도 안내**드리겠습니다.\n\n**■ 대안 제안**\n1. **분할 납품**: 사내 가용 재고 및 우선 생산분으로 일부 수량을 **선(先)출하**하고, 잔여분을 통관 해소 후 순차 납품하는 방안.\n2. **대체 소싱 병행 검토**: 동일 규격 부품의 대체 공급 경로를 함께 점검하여, 통관 지연이 길어질 경우의 백업 라인을 확보.\n3. **긴급 통관·특송 우선 처리**: 서류 보완 후 통관 우선순위 상향 및 입고 후 특송 출하로 지연 폭 최소화.\n\n귀사 생산 일정에 미치는 영향이 크실 것으로 이해하며, 위 대안 중 선호하시는 방향을 알려주시면 즉시 반영하겠습니다. 통관 진행 상황은 매일 업데이트하여 공유드리겠습니다.\n\n감사합니다.\n[공급사 고객지원팀 드림]\n\n---\n\n**참고(내부)**: 위 회신은 고객 대면 문서라 내부 공급사명·발주금액·타 품목 통관건은 의도적으로 제외했습니다. 계약 CT-2025-011의 페널티 조항(지연 7일 초과)은 **당사↔공급사 간** 사안이므로 고객 회신에 포함하지 않았습니다. \"수일~1주 지연\"은 데이터상 확인된 지연일수 9일·ATA 미도착·통관 HOLD 상태에 근거한 **추정**이며, 실제 재확정 납기는 통관 완료 시점에 확정해야 합니다(생산 리드타임은 데이터에 없어 단정하지 않았습니다).",
+  "elapsed_s": 132.5,
+  "tool_calls": 12,
+  "tool_errors": 0,
+  "tools_used": [
+    "Read",
+    "ontology_graph_schema",
+    "ontology_get_datasource_schema",
+    "ontology_get_datasource_schema",
+    "ontology_get_datasource_schema",
+    "ontology_query_datasource_sql",
+    "ontology_get_datasource_schema",
+    "ontology_get_datasource_schema",
+    "ontology_get_datasource_schema",
+    "ontology_query_datasource_sql",
+    "ontology_query_datasource_sql",
+    "ontology_query_datasource_sql"
+  ],
+  "handoff_from": "S1-procurement",
+  "checks": [
+    {
+      "pattern": "아틀라스|CUS-004",
+      "hit": true
+    },
+    {
+      "pattern": "SO-2026-0412",
+      "hit": true
+    },
+    {
+      "pattern": "PO-2026-0117",
+      "hit": true
+    },
+    {
+      "pattern": "SPC-200|ITM-FG-001",
+      "hit": true
+    },
+    {
+      "pattern": "세관|통관|원산지",
+      "hit": true
+    }
+  ],
+  "queried": true,
+  "passed": true
+}

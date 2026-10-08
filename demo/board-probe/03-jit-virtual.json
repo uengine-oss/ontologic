@@ -1,0 +1,119 @@
+{
+  "class_name": "MfgDailyEquipment",
+  "description": "Mfg daily equipment (manufacturing.mfg_daily_equipment)",
+  "source": {
+    "datasource": "legacy",
+    "schema": "manufacturing",
+    "table": "mfg_daily_equipment"
+  },
+  "key_columns": [
+    "status_date",
+    "equipment_id"
+  ],
+  "base_conditions": [],
+  "columns": [
+    {
+      "property": "status_date",
+      "column": "status_date",
+      "type": "date",
+      "description": ""
+    },
+    {
+      "property": "equipment_id",
+      "column": "equipment_id",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "property": "equipment_name",
+      "column": "equipment_name",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "property": "step_id",
+      "column": "step_id",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "property": "status",
+      "column": "status",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "property": "operating_hours",
+      "column": "operating_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "idle_hours",
+      "column": "idle_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "maintenance_hours",
+      "column": "maintenance_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "breakdown_hours",
+      "column": "breakdown_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "breakdown_count",
+      "column": "breakdown_count",
+      "type": "integer",
+      "description": ""
+    },
+    {
+      "property": "mtbf_hours",
+      "column": "mtbf_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "mttr_hours",
+      "column": "mttr_hours",
+      "type": "float",
+      "description": ""
+    },
+    {
+      "property": "utilization_rate",
+      "column": "utilization_rate",
+      "type": "float",
+      "description": ""
+    }
+  ],
+  "column_count": 13,
+  "behaviors": [
+    {
+      "name": "worst_utilization_for_steps",
+      "description": "주어진 공정들에서 가동률이 가장 낮았던 설비와 그 일자",
+      "parameters": [
+        {
+          "name": "step_ids",
+          "type": "string_list",
+          "required": true,
+          "description": "대상 공정 ID 목록"
+        }
+      ],
+      "output_columns": [
+        "equipment_id",
+        "equipment_name",
+        "step_id",
+        "status_date",
+        "utilization_rate"
+      ],
+      "result_kind": "rows",
+      "golden_question": "제품 라우팅에 포함된 공정 중 가동률이 가장 낮았던 설비와 그 일자는?"
+    }
+  ],
+  "usage": "SQL 에는 property 가 아니라 column 값을 쓰세요. LIMIT 은 직접 쓰지 말고 limit 인자로 넘기세요."
+}

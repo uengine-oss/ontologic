@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "n": {
+        "min_order_qty": 100,
+        "is_active": "Y",
+        "lead_time_days": 5,
+        "product_id": "PROD-001",
+        "unit_cost": "28000.00",
+        "created_date": "2024-01-01",
+        "unit_price": "45000.00",
+        "product_name": "고정밀 베어링 A형",
+        "product_category": "자동차부품"
+      },
+      "_datasource_refs": [
+        {
+          "class": "MfgDailyQualityIssue",
+          "datasource": "legacy",
+          "schema": "manufacturing",
+          "table": "mfg_daily_quality_issue",
+          "via_relationship": "REFERENCES_MFG_PRODUCT",
+          "join_on": "product_id = product_id"
+        },
+        {
+          "class": "MfgDailyProcessMetrics",
+          "datasource": "legacy",
+          "schema": "manufacturing",
+          "table": "mfg_daily_process_metrics",
+          "via_relationship": "REFERENCES_MFG_PRODUCT",
+          "join_on": "product_id = product_id"
+        }
+      ]
+    },
+    {
+      "n": {
+        "min_order_qty": 100,
+        "is_active": "Y",
+        "lead_time_days": 5,
+        "product_id": "PROD-002",
+        "unit_cost": "32000.00",
+        "created_date": "2024-01-01",
+        "unit_price": "52000.00",
+        "product_name": "고정밀 베어링 B형",
+        "product_category": "자동차부품"
+      },
+      "_datasource_refs": [
+        {
+          "class": "MfgDailyQualityIssue",
+          "datasource": "legacy",
+          "schema": "manufacturing",
+          "table": "mfg_daily_quality_issue",
+          "via_relationship": "REFERENCES_MFG_PRODUCT",
+          "join_on": "product_id = product_id"
+        },
+        {
+          "class": "MfgDailyProcessMetrics",
+          "datasource": "legacy",
+          "schema": "manufacturing",
+          "table": "mfg_daily_process_metrics",
+          "via_relationship": "REFERENCES_MFG_PRODUCT",
+          "join_on": "product_id = product_id"
+        }
+      ]
+    }
+  ],
+  "row_count": 2,
+  "truncated": false,
+  "_datasource_refs": [
+    {
+      "from_class": "MfgProduct",
+      "class": "MfgDailyQualityIssue",
+      "datasource": "legacy",
+      "schema": "manufacturing",
+      "table": "mfg_daily_quality_issue",
+      "via_relationship": "REFERENCES_MFG_PRODUCT",
+      "join_on": "product_id = product_id"
+    },
+    {
+      "from_class": "MfgProduct",
+      "class": "MfgDailyProcessMetrics",
+      "datasource": "legacy",
+      "schema": "manufacturing",
+      "table": "mfg_daily_process_metrics",
+      "via_relationship": "REFERENCES_MFG_PRODUCT",
+      "join_on": "product_id = product_id"
+    }
+  ],
+  "_datasource_hint": "이 질의가 다룬 클래스에서 도달 가능한 데이터소스 바인딩입니다. 수치·시계열이 필요하면 ontology_get_datasource_schema(class) 로 해당 클래스의 컬럼을 먼저 받으세요."
+}
