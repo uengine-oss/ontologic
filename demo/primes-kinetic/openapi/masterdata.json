@@ -1,0 +1,1360 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "PriMES masterdata",
+        "description": "PriMES 기준정보 — 품목, BOM, 라우팅, 거래처, 공정 등 기준정보 레코드.\n\n호출은 PriMES 게이트웨이(servers)를 거치며, POST /api/auth/login {tenant, loginId, password} 로 받은 JWT를 Authorization: Bearer 로 보낸다. 조회는 공통 API GET /api/masterdata/views/{type} 를 쓴다.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "PriMES gateway"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "공통 · 이벤트소싱 레코드/조회",
+            "description": "모든 서비스 공통 — 메타데이터 기반 레코드 명령, 조회 모델, 이벤트 이력"
+        }
+    ],
+    "paths": {
+        "/api/masterdata/records/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 단건 조회",
+                "operationId": "masterdataGetRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 수정 (RecordUpdated 이벤트) — 바뀐 필드만 보내도 됨",
+                "operationId": "masterdataUpdateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 삭제 (RecordDeleted 이벤트)",
+                "operationId": "masterdataDeleteRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/masterdata/records/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 조회 (type: 레코드 유형, 예: purchase-order)",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "masterdataListRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 생성 (RecordCreated 이벤트) — 본문은 레코드 필드 자유 형식",
+                "operationId": "masterdataCreateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/records/{type}/delete": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 일괄 삭제 — 본문 {ids:[...]}",
+                "operationId": "masterdataDeleteRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "{ids: [레코드 id, …]}",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/projections/rebuild": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션(조회 모델) 재구성",
+                "operationId": "masterdataRebuildProjections",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/compensation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 계획 조회 (아무것도 쓰지 않음)",
+                "operationId": "masterdataGetCompensationPlan",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 실행 — 상관관계가 바꾼 애그리거트를 되돌림",
+                "operationId": "masterdataCompensate",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "보상 처리"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/records/{type}/{id}/history": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 변경 이력(이벤트 스트림)",
+                "operationId": "masterdataGetRecordHistory",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/records/{type}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 레코드 상태 (time travel)",
+                "operationId": "masterdataGetRecordAsOf",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/views/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 단건 조회",
+                "operationId": "masterdataGetView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/records/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "masterdataExportRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/views/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "masterdataExportView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/views/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 목록 조회 — q, page, size, sort=field,desc, f.<필드>=값 필터",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "masterdataListView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/events": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "최근 이벤트 목록 (type 필터, limit, before)",
+                "operationId": "masterdataListEvents",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 100
+                        }
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "default": 9223372036854775807
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/events/streams/{aggregateId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "애그리거트 이벤트 스트림",
+                "operationId": "masterdataGetEventStream",
+                "parameters": [
+                    {
+                        "name": "aggregateId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/events/stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 유형별 건수",
+                "operationId": "masterdataGetEventStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/events/correlation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "상관관계 ID로 묶인 이벤트",
+                "operationId": "masterdataGetCorrelatedEvents",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/aggregates/{aggregateType}/{id}/versions/{version}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 버전 직후의 애그리거트 상태",
+                "operationId": "masterdataGetAggregateVersion",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "version",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/aggregates/{aggregateType}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 애그리거트 상태",
+                "operationId": "masterdataGetAggregateAsOf",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/store-stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 저장소 통계",
+                "operationId": "masterdataGetStoreStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/projections": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션 목록",
+                "operationId": "masterdataListProjections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/processed/{eventId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이 서비스가 해당 이벤트를 소비했는지 확인",
+                "operationId": "masterdataGetProcessedEvent",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/masterdata/admin/outbox": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "아웃박스(발행 대기/완료) 조회",
+                "operationId": "masterdataListOutbox",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "EventEnvelope": {
+                "type": "object",
+                "properties": {
+                    "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "globalSeq": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tenantId": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "aggregateType": {
+                        "type": "string"
+                    },
+                    "aggregateId": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/JsonNode"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    },
+                    "causationId": {
+                        "type": "string"
+                    },
+                    "occurredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "JsonNode": {
+                "type": "object"
+            },
+            "PageResultObjectNode": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "POST /api/auth/login 응답의 token",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

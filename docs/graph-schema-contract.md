@@ -114,14 +114,39 @@ CALL db.labels() YIELD label WHERE label STARTS WITH 'T0' RETURN label;
 ```
 (:_OntologyModel {schema_id, name, description, intent, golden_questions, published_at, format_version})
   ├─[:HAS_CLASS]──→ (:_OntologyClass {class_name, description, binding_kind, properties, key_columns})
-  │                    └─[:HAS_BINDING]→ (:_OntologyBinding {datasource, source_schema, table,
-  │                                          extra_tables, key_columns, column_map,
-  │                                          base_conditions, label_property, default_limit})
-  │                          └─[:HAS_BEHAVIOR]→ (:_OntologyBehavior {name, description, parameters,
-  │                                                 sql_template, output_columns, result_kind,
-  │                                                 max_rows, golden_question})
+  │                    ├─[:HAS_BINDING]→ (:_OntologyBinding {datasource, source_schema, table,
+  │                    │                     extra_tables, key_columns, column_map,
+  │                    │                     base_conditions, label_property, default_limit})
+  │                    │     └─[:HAS_BEHAVIOR]→ (:_OntologyBehavior {behavior_type:'sql', name,
+  │                    │                            description, parameters, sql_template,
+  │                    │                            output_columns, result_kind, max_rows,
+  │                    │                            golden_question})
+  │                    └─[:HAS_ACTION]→ (:_OntologyBehavior {behavior_type:'action', behavior_name,
+  │                                        class_name, schema_id, description, parameters,
+  │                                        key_property, system, operation_id, arg_mapping,
+  │                                        effect, confirm_threshold, max_targets, policy,
+  │                                        compensate, writeback_property, version})
   └─[:HAS_RELATIONSHIP]→ (:_OntologyRelationship {name, from_class, to_class, description, properties})
 ```
+
+**`_OntologyBehavior` 는 판별자 `behavior_type` 로 종류를 가른다** (spec 014,
+[`ontology-metamodel-direction.md`](ontology-metamodel-direction.md) §3·§6).
+
+| `behavior_type` | 매달리는 곳 | 실행 주체 | 비고 |
+|---|---|---|---|
+| `'sql'` | 바인딩 아래 `HAS_BEHAVIOR` | neo4j-text2sql → MindsDB | 판별자가 **없는** 옛 발행물도 `'sql'` 로 읽는다 |
+| `'action'` | 클래스 아래 `HAS_ACTION` | kinetic-action | 바인딩이 없는 materialized 클래스에도 붙는다 |
+
+- 액션의 속성 의미·JSON 형식(`parameters`·`arg_mapping`·`policy` 는 JSON **문자열**)은
+  [`specs/014-kinetic-action-layer/contracts/kinetic-api.md`](../specs/014-kinetic-action-layer/contracts/kinetic-api.md)
+  §1 이 원천이다. 여기에 다시 적지 않는다.
+- 런타임 리더(`ontology_runtime.get_binding`)는 `HAS_BEHAVIOR` 경로만 읽고, `behavior_type`
+  이 `'sql'` 이 아닌 노드는 SQL 로 실행하지 않는다.
+- 재발행 정리 범위 `(m)-[*1..3]->(child:_Ontology*)` 가 액션 노드(m→c→a, 깊이 2)를 덮는다 —
+  지운 액션은 다음 발행에서 그래프에서도 사라진다. 발행 직후 스튜디오는 best-effort 로
+  `POST {KINETIC_URL}/api/kinetic/catalog/refresh` 를 부른다(실패해도 발행은 성공).
+- 액션 노드는 `_OntologyBehavior` 라벨이므로 외부 Cypher 표면의 발행 레지스트리 차단
+  (`runtime_adapters.BLOCKED_LABELS_REGISTRY`)이 그대로 적용된다.
 
 **자격증명은 어떤 노드에도 싣지 않는다.** 데이터소스는 이름으로만 지칭한다
 (constitution V, spec 009 FR-003). 카탈로그의 `:DataSource` 노드가 `password` 를 평문으로

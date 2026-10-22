@@ -1,0 +1,13 @@
+import { createRequire } from 'module';
+const require = createRequire('/Users/uengine/ontologic/ontology-studio/package.json');
+const { chromium } = require('@playwright/test');
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
+await p.goto('http://localhost:5183/', { waitUntil: 'networkidle' });
+await p.mouse.click(940, 277);
+await p.waitForTimeout(1500);
+await p.screenshot({ path: 'explore/01-node.png' });
+await p.getByText('정보', { exact: true }).click();
+await p.waitForTimeout(1500);
+await p.screenshot({ path: 'explore/02-info.png' });
+await b.close();

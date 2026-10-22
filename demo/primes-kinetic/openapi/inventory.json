@@ -1,0 +1,1644 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "PriMES inventory",
+        "description": "PriMES 재고 — 입고/출고/이동/실사 조정, LOT·품목·위치별 재고 조회.\n\n호출은 PriMES 게이트웨이(servers)를 거치며, POST /api/auth/login {tenant, loginId, password} 로 받은 JWT를 Authorization: Bearer 로 보낸다. 조회는 공통 API GET /api/inventory/views/{type} 를 쓴다.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "PriMES gateway"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "공통 · 이벤트소싱 레코드/조회",
+            "description": "모든 서비스 공통 — 메타데이터 기반 레코드 명령, 조회 모델, 이벤트 이력"
+        },
+        {
+            "name": "재고",
+            "description": "수동 재고 명령. 조회는 GET /api/inventory/views/stock-lot|stock-product|stock-location|stock-tx|stock-exception"
+        }
+    ],
+    "paths": {
+        "/api/inventory/records/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 단건 조회",
+                "operationId": "inventoryGetRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 수정 (RecordUpdated 이벤트) — 바뀐 필드만 보내도 됨",
+                "operationId": "inventoryUpdateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 삭제 (RecordDeleted 이벤트)",
+                "operationId": "inventoryDeleteRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/inventory/stock/receive": {
+            "post": {
+                "tags": [
+                    "재고"
+                ],
+                "summary": "재고 입고",
+                "description": "LOT를 입고한다 (StockReceived). 응답 {lotNo}.",
+                "operationId": "receiveStock",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReceiveStockRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/stock/move": {
+            "post": {
+                "tags": [
+                    "재고"
+                ],
+                "summary": "재고 이동",
+                "description": "LOT 위치(창고/구역/랙)를 옮긴다 (StockMoved).",
+                "operationId": "moveStock",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveStockRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/inventory/stock/issue": {
+            "post": {
+                "tags": [
+                    "재고"
+                ],
+                "summary": "재고 출고",
+                "description": "LOT에서 수량을 출고한다 (StockIssued).",
+                "operationId": "issueStock",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IssueStockRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/inventory/stock/adjust": {
+            "post": {
+                "tags": [
+                    "재고"
+                ],
+                "summary": "재고 실사 조정",
+                "description": "월별 실사 수량을 반영한다 (StockAdjusted). 응답 {adjusted}.",
+                "operationId": "adjustStock",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AdjustStockRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/records/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 조회 (type: 레코드 유형, 예: purchase-order)",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "inventoryListRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 생성 (RecordCreated 이벤트) — 본문은 레코드 필드 자유 형식",
+                "operationId": "inventoryCreateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/records/{type}/delete": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 일괄 삭제 — 본문 {ids:[...]}",
+                "operationId": "inventoryDeleteRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "{ids: [레코드 id, …]}",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/projections/rebuild": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션(조회 모델) 재구성",
+                "operationId": "inventoryRebuildProjections",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/compensation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 계획 조회 (아무것도 쓰지 않음)",
+                "operationId": "inventoryGetCompensationPlan",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 실행 — 상관관계가 바꾼 애그리거트를 되돌림",
+                "operationId": "inventoryCompensate",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "보상 처리"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/records/{type}/{id}/history": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 변경 이력(이벤트 스트림)",
+                "operationId": "inventoryGetRecordHistory",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/records/{type}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 레코드 상태 (time travel)",
+                "operationId": "inventoryGetRecordAsOf",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/views/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 단건 조회",
+                "operationId": "inventoryGetView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/records/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "inventoryExportRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/views/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "inventoryExportView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/views/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 목록 조회 — q, page, size, sort=field,desc, f.<필드>=값 필터",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "inventoryListView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/events": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "최근 이벤트 목록 (type 필터, limit, before)",
+                "operationId": "inventoryListEvents",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 100
+                        }
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "default": 9223372036854775807
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/events/streams/{aggregateId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "애그리거트 이벤트 스트림",
+                "operationId": "inventoryGetEventStream",
+                "parameters": [
+                    {
+                        "name": "aggregateId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/events/stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 유형별 건수",
+                "operationId": "inventoryGetEventStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/events/correlation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "상관관계 ID로 묶인 이벤트",
+                "operationId": "inventoryGetCorrelatedEvents",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/aggregates/{aggregateType}/{id}/versions/{version}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 버전 직후의 애그리거트 상태",
+                "operationId": "inventoryGetAggregateVersion",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "version",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/aggregates/{aggregateType}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 애그리거트 상태",
+                "operationId": "inventoryGetAggregateAsOf",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/store-stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 저장소 통계",
+                "operationId": "inventoryGetStoreStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/projections": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션 목록",
+                "operationId": "inventoryListProjections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/processed/{eventId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이 서비스가 해당 이벤트를 소비했는지 확인",
+                "operationId": "inventoryGetProcessedEvent",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inventory/admin/outbox": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "아웃박스(발행 대기/완료) 조회",
+                "operationId": "inventoryListOutbox",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ReceiveStockRequest": {
+                "required": [
+                    "productCode",
+                    "qty"
+                ],
+                "type": "object",
+                "properties": {
+                    "lotNo": {
+                        "type": "string",
+                        "description": "LOT 번호 (생략 시 자동)"
+                    },
+                    "productCode": {
+                        "type": "string",
+                        "description": "품목 코드",
+                        "example": "M-STEEL-01"
+                    },
+                    "productName": {
+                        "type": "string",
+                        "description": "품목명"
+                    },
+                    "itemNo": {
+                        "type": "string",
+                        "description": "품번"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "description": "재고 구분 (기본 MATERIAL)",
+                        "enum": [
+                            "MATERIAL",
+                            "WIP",
+                            "FG"
+                        ]
+                    },
+                    "qty": {
+                        "type": "number",
+                        "description": "수량",
+                        "format": "double",
+                        "example": 1000
+                    },
+                    "warehouse": {
+                        "type": "string",
+                        "description": "창고 (기본 자재창고)"
+                    },
+                    "zone": {
+                        "type": "string",
+                        "description": "구역"
+                    },
+                    "rack": {
+                        "type": "string",
+                        "description": "랙"
+                    },
+                    "remark": {
+                        "type": "string",
+                        "description": "비고"
+                    },
+                    "unitCost": {
+                        "type": "number",
+                        "description": "단가",
+                        "format": "double"
+                    }
+                },
+                "description": "수동 입고 — LOT 생성 (생략 시 채번)"
+            },
+            "MoveStockRequest": {
+                "required": [
+                    "lotNo"
+                ],
+                "type": "object",
+                "properties": {
+                    "lotNo": {
+                        "type": "string",
+                        "description": "LOT 번호"
+                    },
+                    "warehouse": {
+                        "type": "string",
+                        "description": "도착 창고"
+                    },
+                    "zone": {
+                        "type": "string",
+                        "description": "도착 구역"
+                    },
+                    "rack": {
+                        "type": "string",
+                        "description": "도착 랙"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "사유"
+                    }
+                },
+                "description": "LOT 위치 이동"
+            },
+            "IssueStockRequest": {
+                "required": [
+                    "lotNo",
+                    "qty"
+                ],
+                "type": "object",
+                "properties": {
+                    "lotNo": {
+                        "type": "string",
+                        "description": "LOT 번호"
+                    },
+                    "qty": {
+                        "type": "number",
+                        "description": "출고 수량",
+                        "format": "double"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "사유"
+                    },
+                    "ref": {
+                        "type": "string",
+                        "description": "참조 (문서 번호 등)"
+                    }
+                },
+                "description": "수동 출고"
+            },
+            "AdjustStockRequest": {
+                "type": "object",
+                "properties": {
+                    "month": {
+                        "type": "string",
+                        "description": "실사 월 (YYYY-MM)",
+                        "example": "2026-10"
+                    },
+                    "counts": {
+                        "type": "array",
+                        "description": "LOT별 실사 수량",
+                        "items": {
+                            "$ref": "#/components/schemas/StockCount"
+                        }
+                    }
+                },
+                "description": "월별 재고 실사 반영. counts 를 생략하면 본문 자체를 한 건으로 본다."
+            },
+            "StockCount": {
+                "required": [
+                    "countedQty",
+                    "lotNo"
+                ],
+                "type": "object",
+                "properties": {
+                    "lotNo": {
+                        "type": "string",
+                        "description": "LOT 번호"
+                    },
+                    "countedQty": {
+                        "type": "number",
+                        "description": "실사 수량",
+                        "format": "double"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "차이 사유"
+                    }
+                },
+                "description": "LOT 실사 결과"
+            },
+            "EventEnvelope": {
+                "type": "object",
+                "properties": {
+                    "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "globalSeq": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tenantId": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "aggregateType": {
+                        "type": "string"
+                    },
+                    "aggregateId": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/JsonNode"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    },
+                    "causationId": {
+                        "type": "string"
+                    },
+                    "occurredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "JsonNode": {
+                "type": "object"
+            },
+            "PageResultObjectNode": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "POST /api/auth/login 응답의 token",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

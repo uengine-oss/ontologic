@@ -154,3 +154,21 @@ spring:
             - Path=/**
           filters:
             - RemoveRequestHeader=Origin
+
+# ============================================
+# Kinetic Action Layer (spec 014, specs/014-kinetic-action-layer/contracts/kinetic-api.md)
+# 북향: /mcp/kinetic/** · /api/kinetic/** (JWT) · /.well-known/oauth-protected-resource[/mcp/kinetic] (공개)
+# 남향: /svc/<system>/** — X-Kinetic-Internal 필수, 라우트는 kinetic-action 에서 주기적으로 읽어 온다
+# 라우트 자체는 Java 로 정의 (com.roboanalyz.gateway.kinetic.*)
+# ============================================
+kinetic:
+  enabled: ${KINETIC_ENABLED:true}
+  url: ${KINETIC_URL:http://kinetic-action:8030}
+  jwks-url: ${KINETIC_JWKS_URL:http://localhost:8032/.well-known/jwks.json}
+  issuer: ${KINETIC_ISSUER:http://localhost:8032}
+  audience: ${KINETIC_AUDIENCE:kinetic-action}
+  public-base: ${KINETIC_PUBLIC_BASE:http://localhost:9000}
+  internal-secret: ${KINETIC_INTERNAL_SECRET:}
+  route-refresh: ${KINETIC_ROUTE_REFRESH:15s}
+  rate-per-sec: ${KINETIC_RATE_PER_SEC:10}
+  rate-burst: ${KINETIC_RATE_BURST:20}

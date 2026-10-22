@@ -1,0 +1,20 @@
+.run/
+# 시연 생성물 — 스크립트로 다시 만든다 (capture/build/gen_* · README 참조)
+rehearsal/
+**/slides/
+**/narration/
+**/explore/
+**/verify/
+*.m4a
+*.mp3
+*.srt
+*.log
+FAIL-*.png
+**/concat.txt
+**/checks.txt
+**/facts.json
+**/slides*.json
+dbg*.png
+dbg*.mjs
+.run/
+.keys/

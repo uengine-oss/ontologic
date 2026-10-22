@@ -14,6 +14,17 @@ public class CorsConfig {
 
     @Bean
     public CorsWebFilter corsWebFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", baseCorsConfiguration());
+        
+        return new CorsWebFilter(source);
+    }
+
+    /**
+     * 기존 CORS 설정 원본. 키네틱 JWT 체인(KineticSecurityConfig)도 이 설정을 복사해
+     * 401 응답에 같은 CORS 헤더를 단다 (WWW-Authenticate 노출만 추가).
+     */
+    public static CorsConfiguration baseCorsConfiguration() {
         CorsConfiguration corsConfig = new CorsConfiguration();
         
         // Allowed Origins (모든 프론트엔드 포트)
@@ -53,10 +64,7 @@ public class CorsConfig {
         // Max Age
         corsConfig.setMaxAge(3600L);
         
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", corsConfig);
-        
-        return new CorsWebFilter(source);
+        return corsConfig;
     }
 }
 

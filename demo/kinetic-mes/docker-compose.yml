@@ -1,0 +1,96 @@
+# kinetic-action 데모 스택. 다른 프로젝트와 겹치지 않는 포트만 쓴다.
+#   neo4j bolt 7690 · http 7477 · postgres 5440 · kinetic-action 8030 · mock-mes 8031 · dev-idp 8032
+#   mock-cmms 8034 · mock-aps 8035
+name: kinetic-mes
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/kineticdemo
+      NEO4J_server_memory_heap_max__size: 512m
+    ports: ["127.0.0.1:7690:7687", "127.0.0.1:7477:7474"]
+    volumes: [neo4j-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p kineticdemo 'RETURN 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kinetic
+      POSTGRES_PASSWORD: kinetic
+      POSTGRES_DB: kinetic
+    ports: ["127.0.0.1:5440:5432"]
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kinetic"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  dev-idp:   # ⚠ DEV ONLY — 누구에게나 토큰을 발급한다
+    build: .
+    command: ["python", "dev_idp.py"]
+    environment:
+      DEV_IDP_ISSUER: http://localhost:8032
+      DEV_IDP_KEY_DIR: /keys
+      # OAuth2 client credentials 클라이언트 kinetic-gateway 의 비밀 (게이트웨이 env APS_CLIENT_SECRET 과 같아야 한다)
+      KINETIC_GATEWAY_CLIENT_SECRET: ${APS_CLIENT_SECRET:-aps-demo-secret}
+    ports: ["127.0.0.1:8032:8032"]
+    volumes: [./.keys:/keys]
+
+  mock-mes:
+    build: .
+    command: ["python", "mock_mes.py"]
+    ports: ["127.0.0.1:8031:8031"]
+
+  mock-cmms:   # 설비보전 — 정비 작업지시 (다른 팀 서비스라는 설정)
+    build: .
+    command: ["python", "mock_cmms.py"]
+    environment:
+      CMMS_API_KEY: ${CMMS_API_KEY:-cmms-demo-key}   # 업무 API 는 X-API-Key 필요
+    ports: ["127.0.0.1:8034:8034"]
+
+  mock-aps:    # 생산계획 — 일정 재배정
+    build: .
+    command: ["python", "mock_aps.py"]
+    environment:   # 업무 API 는 dev-idp client credentials 토큰(aud mock-aps) 필요
+      APS_JWKS_URL: http://dev-idp:8032/.well-known/jwks.json
+      APS_ISSUER: http://localhost:8032
+      APS_AUDIENCE: mock-aps
+    ports: ["127.0.0.1:8035:8035"]
+    depends_on: [dev-idp]
+
+  kinetic-action:
+    build: ../../kinetic-action
+    environment:
+      KINETIC_DB_URL: postgresql+psycopg://kinetic:kinetic@postgres:5432/kinetic
+      KINETIC_NEO4J_URI: bolt://neo4j:7687
+      KINETIC_NEO4J_USER: neo4j
+      KINETIC_NEO4J_PASSWORD: kineticdemo
+      KINETIC_JWKS_URL: http://dev-idp:8032/.well-known/jwks.json
+      KINETIC_ISSUER: http://localhost:8032
+      KINETIC_AUDIENCE: kinetic-action
+      KINETIC_INTERNAL_SECRET: ${KINETIC_INTERNAL_SECRET:-demo-internal-secret}
+      KINETIC_PUBLIC_BASE: ${KINETIC_PUBLIC_BASE:-http://localhost:8030}
+      KINETIC_SVC_DIRECT: ${KINETIC_SVC_DIRECT:-1}
+      KINETIC_SVC_BASE: ${KINETIC_SVC_BASE:-http://host.docker.internal:9000/svc}
+      KINETIC_CATALOG_REFRESH: "30"
+      # 직접 모드(KINETIC_SVC_DIRECT=1)에서는 kinetic-action 이 시스템 인증을 주입한다 — 비밀은 env 로만
+      CMMS_API_KEY: ${CMMS_API_KEY:-cmms-demo-key}
+      APS_CLIENT_SECRET: ${APS_CLIENT_SECRET:-aps-demo-secret}
+    ports: ["127.0.0.1:8030:8030"]
+    depends_on:
+      neo4j: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+      dev-idp: {condition: service_started}
+      mock-mes: {condition: service_started}
+      mock-cmms: {condition: service_started}
+      mock-aps: {condition: service_started}
+
+volumes:
+  neo4j-data:
+  pg-data:

@@ -1,0 +1,20 @@
+import { createRequire } from 'module';
+const require = createRequire('/Users/uengine/ontologic/ontology-studio/package.json');
+const { chromium } = require('@playwright/test');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
+await p.goto('http://localhost:5183/', { waitUntil: 'networkidle' });
+await p.locator('text=액션 실행').first().click();
+await sleep(1000);
+const box = p.locator('textarea').last();
+await box.fill('온도가 80도를 넘는 설비를 모두 점검 모드로 바꿔 주세요. 사유는 냉각수 라인 이상에 따른 과열 점검입니다.');
+await box.press('Enter');
+const t0 = Date.now();
+for (let i = 0; i < 120; i++) { await sleep(3000); if (i % 5 === 0) await p.screenshot({ path: `explore/10-wait-${i}.png` });
+  const txt = await p.locator('body').innerText(); if (/승인/.test(txt) && /거부|허용/.test(txt) && !(await p.locator('text=생각 중').count())) { if (i>3) break; } }
+console.log('plan secs', (Date.now()-t0)/1000);
+await sleep(3000);
+await p.screenshot({ path: 'explore/11-plan.png' });
+console.log((await p.locator('body').innerText()).slice(-2500));
+await b.close();

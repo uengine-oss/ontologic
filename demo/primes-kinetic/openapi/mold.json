@@ -1,0 +1,1885 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "PriMES mold",
+        "description": "PriMES 금형 — 금형 등록, 장착/탈착, 수리, 이관 타수, 폐기.\n\n호출은 PriMES 게이트웨이(servers)를 거치며, POST /api/auth/login {tenant, loginId, password} 로 받은 JWT를 Authorization: Bearer 로 보낸다. 조회는 공통 API GET /api/mold/views/{type} 를 쓴다.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "PriMES gateway"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "공통 · 이벤트소싱 레코드/조회",
+            "description": "모든 서비스 공통 — 메타데이터 기반 레코드 명령, 조회 모델, 이벤트 이력"
+        },
+        {
+            "name": "금형",
+            "description": "금형 등록·장착·수리·타수·폐기. 조회는 GET /api/mold/views/mold|mold-shot|mold-repair|mold-scrap"
+        }
+    ],
+    "paths": {
+        "/api/mold/records/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 단건 조회",
+                "operationId": "moldGetRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 수정 (RecordUpdated 이벤트) — 바뀐 필드만 보내도 됨",
+                "operationId": "moldUpdateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 삭제 (RecordDeleted 이벤트)",
+                "operationId": "moldDeleteRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}": {
+            "put": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 정보 변경",
+                "description": "금형 속성을 변경한다 (MoldChanged).",
+                "operationId": "changeMold",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangeMoldRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/records/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 조회 (type: 레코드 유형, 예: purchase-order)",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "moldListRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 생성 (RecordCreated 이벤트) — 본문은 레코드 필드 자유 형식",
+                "operationId": "moldCreateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/records/{type}/delete": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 일괄 삭제 — 본문 {ids:[...]}",
+                "operationId": "moldDeleteRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "{ids: [레코드 id, …]}",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 등록",
+                "description": "새 금형을 등록한다 (MoldRegistered). 응답은 mold 조회 모델.",
+                "operationId": "registerMold",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterMoldRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}/unmount": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 탈착",
+                "description": "장착된 금형을 탈착한다 (MoldUnmounted).",
+                "operationId": "unmountMold",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}/shots": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "이관 타수 등록",
+                "description": "도입 이전 누적 타수를 반영한다 (ShotsAccumulated, 수명 경고 가능).",
+                "operationId": "importMoldShots",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportMoldShotsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}/scrap": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 폐기",
+                "description": "금형을 폐기한다 (MoldScrapped).",
+                "operationId": "scrapMold",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ScrapMoldRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}/repairs": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 수리 기록",
+                "description": "금형 수리를 기록하고 수명 타수를 늘린다 (MoldRepaired).",
+                "operationId": "repairMold",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RepairMoldRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/{id}/mount": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 장착",
+                "description": "금형을 작업지시·설비에 장착한다 (MoldMounted).",
+                "operationId": "mountMold",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "금형 id (UUID) — 조회 모델 items[].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MountMoldRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/molds/delete": {
+            "post": {
+                "tags": [
+                    "금형"
+                ],
+                "summary": "금형 일괄 폐기",
+                "description": "여러 금형을 오늘 날짜로 폐기한다. 응답 {scrapped}.",
+                "operationId": "scrapMolds",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IdsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/projections/rebuild": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션(조회 모델) 재구성",
+                "operationId": "moldRebuildProjections",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/compensation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 계획 조회 (아무것도 쓰지 않음)",
+                "operationId": "moldGetCompensationPlan",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 실행 — 상관관계가 바꾼 애그리거트를 되돌림",
+                "operationId": "moldCompensate",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "보상 처리"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/records/{type}/{id}/history": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 변경 이력(이벤트 스트림)",
+                "operationId": "moldGetRecordHistory",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/records/{type}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 레코드 상태 (time travel)",
+                "operationId": "moldGetRecordAsOf",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/views/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 단건 조회",
+                "operationId": "moldGetView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/records/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "moldExportRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/views/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "moldExportView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/views/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 목록 조회 — q, page, size, sort=field,desc, f.<필드>=값 필터",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "moldListView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/events": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "최근 이벤트 목록 (type 필터, limit, before)",
+                "operationId": "moldListEvents",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 100
+                        }
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "default": 9223372036854775807
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/events/streams/{aggregateId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "애그리거트 이벤트 스트림",
+                "operationId": "moldGetEventStream",
+                "parameters": [
+                    {
+                        "name": "aggregateId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/events/stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 유형별 건수",
+                "operationId": "moldGetEventStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/events/correlation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "상관관계 ID로 묶인 이벤트",
+                "operationId": "moldGetCorrelatedEvents",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/aggregates/{aggregateType}/{id}/versions/{version}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 버전 직후의 애그리거트 상태",
+                "operationId": "moldGetAggregateVersion",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "version",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/aggregates/{aggregateType}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 애그리거트 상태",
+                "operationId": "moldGetAggregateAsOf",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/store-stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 저장소 통계",
+                "operationId": "moldGetStoreStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/projections": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션 목록",
+                "operationId": "moldListProjections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/processed/{eventId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이 서비스가 해당 이벤트를 소비했는지 확인",
+                "operationId": "moldGetProcessedEvent",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mold/admin/outbox": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "아웃박스(발행 대기/완료) 조회",
+                "operationId": "moldListOutbox",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ChangeMoldRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "금형명"
+                    },
+                    "productCodes": {
+                        "type": "string",
+                        "description": "적용 제품 코드 (쉼표 구분)"
+                    },
+                    "processCode": {
+                        "type": "string",
+                        "description": "공정 코드"
+                    },
+                    "cavity": {
+                        "type": "integer",
+                        "description": "캐비티 수",
+                        "format": "int32"
+                    },
+                    "lifeShots": {
+                        "type": "integer",
+                        "description": "수명 타수",
+                        "format": "int64"
+                    },
+                    "warnRatio": {
+                        "type": "number",
+                        "description": "수명 경고 비율",
+                        "format": "double"
+                    },
+                    "maker": {
+                        "type": "string",
+                        "description": "제작사"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "보관 위치"
+                    },
+                    "grade": {
+                        "type": "string",
+                        "description": "등급"
+                    }
+                },
+                "description": "금형 정보 변경 — 보낸 필드 중 값이 바뀐 것만 반영 (id, totalShots 제외)"
+            },
+            "RegisterMoldRequest": {
+                "required": [
+                    "code"
+                ],
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "금형 코드 (필수)",
+                        "example": "MD-001"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "금형명",
+                        "example": "브래킷 프레스 금형"
+                    },
+                    "productCodes": {
+                        "type": "string",
+                        "description": "적용 제품 코드 (쉼표 구분)",
+                        "example": "P-100,P-101"
+                    },
+                    "processCode": {
+                        "type": "string",
+                        "description": "공정 코드",
+                        "example": "PRESS"
+                    },
+                    "cavity": {
+                        "type": "integer",
+                        "description": "캐비티 수 (기본 1)",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "lifeShots": {
+                        "type": "integer",
+                        "description": "수명 타수",
+                        "format": "int64",
+                        "example": 500000
+                    },
+                    "warnRatio": {
+                        "type": "number",
+                        "description": "수명 경고 비율 (기본 0.9)",
+                        "format": "double",
+                        "example": 0.9
+                    },
+                    "maker": {
+                        "type": "string",
+                        "description": "제작사"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "보관 위치"
+                    },
+                    "grade": {
+                        "type": "string",
+                        "description": "등급"
+                    },
+                    "receivedOn": {
+                        "type": "string",
+                        "description": "입고일 (YYYY-MM-DD)",
+                        "format": "date"
+                    }
+                },
+                "description": "금형 등록. 같은 금형코드는 중복 등록할 수 없다."
+            },
+            "ImportMoldShotsRequest": {
+                "required": [
+                    "shots"
+                ],
+                "type": "object",
+                "properties": {
+                    "shots": {
+                        "type": "integer",
+                        "description": "누적 타수 (필수)",
+                        "format": "int64",
+                        "example": 120000
+                    },
+                    "ref": {
+                        "type": "string",
+                        "description": "근거 (기본 '이관')"
+                    }
+                },
+                "description": "이관 타수 등록 — 도입 이전 누적 타수 (ShotsAccumulated, 수명 경고 가능)"
+            },
+            "ScrapMoldRequest": {
+                "type": "object",
+                "properties": {
+                    "scrappedOn": {
+                        "type": "string",
+                        "description": "폐기일 (YYYY-MM-DD)",
+                        "format": "date"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "폐기 사유"
+                    }
+                },
+                "description": "금형 폐기"
+            },
+            "RepairMoldRequest": {
+                "type": "object",
+                "properties": {
+                    "repairedOn": {
+                        "type": "string",
+                        "description": "수리일 (YYYY-MM-DD)",
+                        "format": "date"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "수리 내용"
+                    },
+                    "addedLifeShots": {
+                        "type": "integer",
+                        "description": "수리로 늘어난 수명 타수",
+                        "format": "int64",
+                        "example": 100000
+                    },
+                    "cost": {
+                        "type": "number",
+                        "description": "수리 비용",
+                        "format": "double"
+                    },
+                    "repairedBy": {
+                        "type": "string",
+                        "description": "수리자/업체"
+                    }
+                },
+                "description": "금형 수리 기록 — 수명 타수를 늘릴 수 있다"
+            },
+            "MountMoldRequest": {
+                "type": "object",
+                "properties": {
+                    "woNo": {
+                        "type": "string",
+                        "description": "작업지시 번호",
+                        "example": "2610-0012"
+                    },
+                    "equipmentCode": {
+                        "type": "string",
+                        "description": "설비 코드",
+                        "example": "PR-01"
+                    }
+                },
+                "description": "금형을 작업지시·설비에 장착"
+            },
+            "IdsRequest": {
+                "required": [
+                    "ids"
+                ],
+                "type": "object",
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "description": "대상 애그리거트 id(UUID) 목록",
+                        "items": {
+                            "type": "string",
+                            "description": "대상 애그리거트 id(UUID) 목록"
+                        }
+                    }
+                },
+                "description": "일괄 처리 대상 id 목록"
+            },
+            "EventEnvelope": {
+                "type": "object",
+                "properties": {
+                    "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "globalSeq": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tenantId": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "aggregateType": {
+                        "type": "string"
+                    },
+                    "aggregateId": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/JsonNode"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    },
+                    "causationId": {
+                        "type": "string"
+                    },
+                    "occurredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "JsonNode": {
+                "type": "object"
+            },
+            "PageResultObjectNode": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "POST /api/auth/login 응답의 token",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

@@ -1,0 +1,10 @@
+import { createRequire } from 'module';
+const require = createRequire('/Users/uengine/ontologic/ontology-studio/package.json');
+const { chromium } = require('@playwright/test');
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
+await p.goto('http://localhost:5183/', { waitUntil: 'networkidle' });
+await p.screenshot({ path: 'explore/00-home.png' });
+const items = await p.$$eval('button, a, [role=tab], nav *', els => [...new Set(els.map(e => (e.innerText||e.getAttribute('title')||e.getAttribute('aria-label')||'').trim()).filter(t => t && t.length < 40))]);
+console.log(JSON.stringify(items));
+await b.close();

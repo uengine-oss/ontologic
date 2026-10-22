@@ -1,0 +1,2216 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "PriMES equipment",
+        "description": "PriMES 설비 — 설비 가동/대기/정지/수리/재가동, 비가동·수리 이력, 상태 감시·보전 요청.\n\n호출은 PriMES 게이트웨이(servers)를 거치며, POST /api/auth/login {tenant, loginId, password} 로 받은 JWT를 Authorization: Bearer 로 보낸다. 조회는 공통 API GET /api/equipment/views/{type} 를 쓴다.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "PriMES gateway"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "설비",
+            "description": "설비 상태 전환(가동/대기/정지/수리/재가동), 비가동·수리 이력, 상태 감시·보전 요청. X-Proposed-By / X-Approved-By 헤더로 제안·승인자를 남길 수 있다."
+        },
+        {
+            "name": "공통 · 이벤트소싱 레코드/조회",
+            "description": "모든 서비스 공통 — 메타데이터 기반 레코드 명령, 조회 모델, 이벤트 이력"
+        }
+    ],
+    "paths": {
+        "/api/equipment/records/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 단건 조회",
+                "operationId": "equipmentGetRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 수정 (RecordUpdated 이벤트) — 바뀐 필드만 보내도 됨",
+                "operationId": "equipmentUpdateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 삭제 (RecordDeleted 이벤트)",
+                "operationId": "equipmentDeleteRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}": {
+            "put": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 정보 변경",
+                "description": "설비 속성을 변경한다 (status 제외).",
+                "operationId": "changeEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterEquipmentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 삭제",
+                "description": "설비를 삭제한다.",
+                "operationId": "deleteEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/downtimes/{downtimeId}": {
+            "put": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "비가동 원인 분류",
+                "description": "비가동 건의 원인 코드를 지정한다.",
+                "operationId": "classifyEquipmentDowntime",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "downtimeId",
+                        "in": "path",
+                        "description": "비가동 id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClassifyDowntimeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/equipment/records/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 조회 (type: 레코드 유형, 예: purchase-order)",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "equipmentListRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 생성 (RecordCreated 이벤트) — 본문은 레코드 필드 자유 형식",
+                "operationId": "equipmentCreateRecord",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "레코드 필드 (자유 형식 JSON 객체)",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/records/{type}/delete": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 일괄 삭제 — 본문 {ids:[...]}",
+                "operationId": "equipmentDeleteRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "{ids: [레코드 id, …]}",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 등록",
+                "description": "새 설비를 등록한다 (EquipmentRegistered).",
+                "operationId": "registerEquipment",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterEquipmentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/stop": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 정지",
+                "description": "설비를 정지하고 비가동을 연다 (EquipmentStopped — 생산이 해당 설비 작업지시를 보류/영향 평가). 응답 {downtimeId, equipment}.",
+                "operationId": "stopEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StopEquipmentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/start": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 가동",
+                "description": "설비를 가동(RUN) 상태로 바꾼다.",
+                "operationId": "startEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/restart": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 재가동",
+                "description": "정지/수리 설비를 재가동하고 비가동을 닫는다 (EquipmentRestarted).",
+                "operationId": "restartEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RestartEquipmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/repairs": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 수리 이력 등록",
+                "description": "수리 내역을 기록한다 (EquipmentRepaired). 응답은 설비 조회 모델 + repairId.",
+                "operationId": "recordEquipmentRepair",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentRepairRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/repair": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 수리 착수",
+                "description": "설비를 수리(REPAIR) 상태로 바꾼다.",
+                "operationId": "beginEquipmentRepair",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReasonRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/maintenance-requests": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "보전 요청",
+                "description": "설비 보전을 요청한다 (MaintenanceRequested). 응답은 설비 조회 모델 + requestId.",
+                "operationId": "requestEquipmentMaintenance",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MaintenanceRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/idle": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 대기 전환",
+                "description": "설비를 대기(IDLE) 상태로 바꾼다.",
+                "operationId": "idleEquipment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/downtimes": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "비가동 이력 등록",
+                "description": "과거 비가동을 직접 등록한다.",
+                "operationId": "recordEquipmentDowntime",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordDowntimeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/{id}/conditions": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 상태 감시 결과 보고",
+                "description": "TRANSITION/RISK 는 EquipmentConditionEntered(이상 토픽), NORMAL 은 EquipmentConditionExited.",
+                "operationId": "reportEquipmentCondition",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "설비 id (UUID, 설비코드 아님) — GET /api/equipment/views/equipment?f.code=PR-01 의 items[0].id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EquipmentConditionRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/equipments/delete": {
+            "post": {
+                "tags": [
+                    "설비"
+                ],
+                "summary": "설비 일괄 삭제",
+                "description": "여러 설비를 삭제한다. 응답 {deleted}.",
+                "operationId": "deleteEquipments",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/IdsRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/projections/rebuild": {
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션(조회 모델) 재구성",
+                "operationId": "equipmentRebuildProjections",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/compensation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 계획 조회 (아무것도 쓰지 않음)",
+                "operationId": "equipmentGetCompensationPlan",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "보상 실행 — 상관관계가 바꾼 애그리거트를 되돌림",
+                "operationId": "equipmentCompensate",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "reason",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "보상 처리"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/records/{type}/{id}/history": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 변경 이력(이벤트 스트림)",
+                "operationId": "equipmentGetRecordHistory",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/records/{type}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 레코드 상태 (time travel)",
+                "operationId": "equipmentGetRecordAsOf",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/views/{type}/{id}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 단건 조회",
+                "operationId": "equipmentGetView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/views/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "equipmentExportView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/records/{type}/export.xlsx": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "레코드 목록 엑셀 내보내기",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 .xlsx 파일 (columns=필드:머리글,… 로 열 지정).",
+                "operationId": "equipmentExportRecords",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "columns",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/views/{type}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "조회 모델(뷰) 목록 조회 — q, page, size, sort=field,desc, f.<필드>=값 필터",
+                "description": "필드 일치 필터는 쿼리 파라미터 f.<필드>=값 으로 준다 (예: ?f.status=ISSUED&f.code=PR-01, 쉼표로 여러 값). 응답은 {items, total, page, size}.",
+                "operationId": "equipmentListView",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "전체 텍스트 검색어",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "페이지 번호 (0부터)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "페이지 크기 (기본 100, 최대 5000)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "정렬: 필드,asc|desc (기본 desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dateField",
+                        "in": "query",
+                        "description": "기간 필터를 걸 날짜 필드",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "기간 시작 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "기간 끝 (dateField 기준, YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResultObjectNode"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/events": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "최근 이벤트 목록 (type 필터, limit, before)",
+                "operationId": "equipmentListEvents",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 100
+                        }
+                    },
+                    {
+                        "name": "before",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64",
+                            "default": 9223372036854775807
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/events/streams/{aggregateId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "애그리거트 이벤트 스트림",
+                "operationId": "equipmentGetEventStream",
+                "parameters": [
+                    {
+                        "name": "aggregateId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/events/stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 유형별 건수",
+                "operationId": "equipmentGetEventStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "integer",
+                                        "format": "int64"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/events/correlation/{correlationId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "상관관계 ID로 묶인 이벤트",
+                "operationId": "equipmentGetCorrelatedEvents",
+                "parameters": [
+                    {
+                        "name": "correlationId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EventEnvelope"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/aggregates/{aggregateType}/{id}/versions/{version}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 버전 직후의 애그리거트 상태",
+                "operationId": "equipmentGetAggregateVersion",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "version",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/aggregates/{aggregateType}/{id}/as-of": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "특정 시점의 애그리거트 상태",
+                "operationId": "equipmentGetAggregateAsOf",
+                "parameters": [
+                    {
+                        "name": "aggregateType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "at",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/store-stats": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이벤트 저장소 통계",
+                "operationId": "equipmentGetStoreStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/projections": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "프로젝션 목록",
+                "operationId": "equipmentListProjections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/processed/{eventId}": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "이 서비스가 해당 이벤트를 소비했는지 확인",
+                "operationId": "equipmentGetProcessedEvent",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/equipment/admin/outbox": {
+            "get": {
+                "tags": [
+                    "공통 · 이벤트소싱 레코드/조회"
+                ],
+                "summary": "아웃박스(발행 대기/완료) 조회",
+                "operationId": "equipmentListOutbox",
+                "parameters": [
+                    {
+                        "name": "eventId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "RegisterEquipmentRequest": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "설비 코드 (등록 시 필수)",
+                        "example": "PR-01"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "설비명",
+                        "example": "300톤 프레스 1호기"
+                    },
+                    "processCode": {
+                        "type": "string",
+                        "description": "공정 코드",
+                        "example": "PRESS"
+                    },
+                    "processName": {
+                        "type": "string",
+                        "description": "공정명"
+                    },
+                    "groupName": {
+                        "type": "string",
+                        "description": "설비 그룹"
+                    },
+                    "line": {
+                        "type": "string",
+                        "description": "라인"
+                    },
+                    "ratePerHour": {
+                        "type": "number",
+                        "description": "시간당 생산량",
+                        "format": "double"
+                    },
+                    "criticality": {
+                        "type": "string",
+                        "description": "중요도 (기본 NORMAL)",
+                        "example": "HIGH"
+                    },
+                    "downtimeManaged": {
+                        "type": "boolean",
+                        "description": "비가동 관리 대상"
+                    },
+                    "grade": {
+                        "type": "string",
+                        "description": "등급"
+                    },
+                    "inspectionCycleDays": {
+                        "type": "integer",
+                        "description": "점검 주기(일)",
+                        "format": "int32"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "위치"
+                    },
+                    "maker": {
+                        "type": "string",
+                        "description": "제작사"
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "모델"
+                    },
+                    "installedOn": {
+                        "type": "string",
+                        "description": "설치일 (YYYY-MM-DD)",
+                        "format": "date"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "description": "사용 여부 (기본 true)"
+                    }
+                },
+                "description": "설비 등록 (변경 시에도 같은 필드, 보낸 필드만 반영)"
+            },
+            "ClassifyDowntimeRequest": {
+                "type": "object",
+                "properties": {
+                    "code1": {
+                        "type": "string",
+                        "description": "분류 코드 1"
+                    },
+                    "code2": {
+                        "type": "string",
+                        "description": "분류 코드 2"
+                    },
+                    "code3": {
+                        "type": "string",
+                        "description": "분류 코드 3"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "상세"
+                    }
+                },
+                "description": "비가동 원인 분류"
+            },
+            "StopEquipmentRequest": {
+                "type": "object",
+                "properties": {
+                    "reasonCode": {
+                        "type": "string",
+                        "description": "정지 사유 코드",
+                        "example": "BRK"
+                    },
+                    "reasonName": {
+                        "type": "string",
+                        "description": "정지 사유명",
+                        "example": "고장"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "상세"
+                    },
+                    "expectedRecoveryMinutes": {
+                        "type": "integer",
+                        "description": "예상 복구 시간(분)",
+                        "format": "int32",
+                        "example": 90
+                    }
+                },
+                "description": "설비 정지 — 비가동(downtime)이 열리고 EquipmentStopped 이벤트가 생산에 전달된다"
+            },
+            "RestartEquipmentRequest": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "조치 내용",
+                        "example": "베어링 교체 후 재가동"
+                    }
+                },
+                "description": "설비 재가동"
+            },
+            "EquipmentRepairRequest": {
+                "type": "object",
+                "properties": {
+                    "repairedOn": {
+                        "type": "string",
+                        "description": "수리일 (YYYY-MM-DD)",
+                        "format": "date"
+                    },
+                    "failurePart": {
+                        "type": "string",
+                        "description": "고장 부위"
+                    },
+                    "cause": {
+                        "type": "string",
+                        "description": "원인"
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": "조치"
+                    },
+                    "repairHours": {
+                        "type": "number",
+                        "description": "수리 시간(시간)",
+                        "format": "double"
+                    },
+                    "cost": {
+                        "type": "number",
+                        "description": "비용",
+                        "format": "double"
+                    },
+                    "repairedBy": {
+                        "type": "string",
+                        "description": "수리자"
+                    }
+                },
+                "description": "설비 수리 이력 등록 (과거 일자 허용)"
+            },
+            "ReasonRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "사유",
+                        "example": "설비 점검"
+                    }
+                },
+                "description": "사유만 받는 명령 본문 (생략 가능)"
+            },
+            "MaintenanceRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "요청 사유"
+                    },
+                    "dueDate": {
+                        "type": "string",
+                        "description": "조치 기한 (YYYY-MM-DD)",
+                        "format": "date"
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "description": "판정 규칙 id"
+                    },
+                    "part": {
+                        "type": "string",
+                        "description": "대상 부품"
+                    }
+                },
+                "description": "보전 요청 (MaintenanceRequested)"
+            },
+            "RecordDowntimeRequest": {
+                "type": "object",
+                "properties": {
+                    "startedAt": {
+                        "type": "string",
+                        "description": "시작 시각 (ISO-8601)"
+                    },
+                    "endedAt": {
+                        "type": "string",
+                        "description": "종료 시각 (ISO-8601)"
+                    },
+                    "code1": {
+                        "type": "string",
+                        "description": "분류 코드 1"
+                    },
+                    "code2": {
+                        "type": "string",
+                        "description": "분류 코드 2"
+                    },
+                    "code3": {
+                        "type": "string",
+                        "description": "분류 코드 3"
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "상세"
+                    },
+                    "planned": {
+                        "type": "boolean",
+                        "description": "계획 정지 여부"
+                    }
+                },
+                "description": "비가동 이력 직접 등록"
+            },
+            "EquipmentConditionRequest": {
+                "required": [
+                    "state"
+                ],
+                "type": "object",
+                "properties": {
+                    "condition": {
+                        "type": "string",
+                        "description": "조건 이름",
+                        "example": "vibration-high"
+                    },
+                    "state": {
+                        "type": "string",
+                        "description": "상태",
+                        "enum": [
+                            "TRANSITION",
+                            "RISK",
+                            "NORMAL"
+                        ]
+                    },
+                    "ruleId": {
+                        "type": "string",
+                        "description": "판정 규칙 id"
+                    },
+                    "woNo": {
+                        "type": "string",
+                        "description": "관련 작업지시 번호"
+                    },
+                    "windowFrom": {
+                        "type": "string",
+                        "description": "관측 구간 시작 (ISO-8601)"
+                    },
+                    "windowTo": {
+                        "type": "string",
+                        "description": "관측 구간 끝 (ISO-8601)"
+                    },
+                    "evidence": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "description": "근거 데이터"
+                        },
+                        "description": "근거 데이터"
+                    }
+                },
+                "description": "상태 감시 결과 보고. TRANSITION/RISK → EquipmentConditionEntered, NORMAL → EquipmentConditionExited"
+            },
+            "IdsRequest": {
+                "required": [
+                    "ids"
+                ],
+                "type": "object",
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "description": "대상 애그리거트 id(UUID) 목록",
+                        "items": {
+                            "type": "string",
+                            "description": "대상 애그리거트 id(UUID) 목록"
+                        }
+                    }
+                },
+                "description": "일괄 처리 대상 id 목록"
+            },
+            "EventEnvelope": {
+                "type": "object",
+                "properties": {
+                    "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "globalSeq": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "tenantId": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "aggregateType": {
+                        "type": "string"
+                    },
+                    "aggregateId": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/JsonNode"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    },
+                    "causationId": {
+                        "type": "string"
+                    },
+                    "occurredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "JsonNode": {
+                "type": "object"
+            },
+            "PageResultObjectNode": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "total": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "POST /api/auth/login 응답의 token",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

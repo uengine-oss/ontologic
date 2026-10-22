@@ -1,0 +1,21 @@
+import { createRequire } from 'module';
+const require = createRequire('/Users/uengine/ontologic/ontology-studio/package.json');
+const { chromium } = require('@playwright/test');
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.5 });
+await p.goto('http://localhost:5183/', { waitUntil: 'networkidle' });
+await p.getByText('정보', { exact: true }).click();
+await p.getByText('MES 설비 운영').click();
+await p.waitForTimeout(1000);
+await p.screenshot({ path: 'explore/03-schema.png' });
+const btns = p.locator('button[title="데이터 연결"]');
+console.log('binding buttons', await btns.count());
+// Equipment 행의 버튼
+const row = p.locator('.schema-class', { hasText: 'Equipment' }).first();
+console.log('rows', await p.locator('.schema-class').count());
+await btns.nth(0).click({ force: true });
+await p.waitForTimeout(1500);
+await p.screenshot({ path: 'explore/04-binding.png' });
+const tabs = await p.$$eval('button', els => els.map(e => e.innerText.trim()).filter(t => t && t.length < 20));
+console.log(JSON.stringify(tabs.slice(-40)));
+await b.close();
